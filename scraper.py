@@ -8,30 +8,36 @@ def atualizar_cardapio():
     url = "https://www.ufca.edu.br/assuntos-estudantis/refeitorio-universitario/cardapios/"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
     
-    print(f"Acessando o site: {url}")
+    print(f"Acedendo ao site: {url}")
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    pdf_url = None
-    print("Procurando o botão verde 'Baixar documento'...")
+    pdf_urls = []
+    print("A procurar os botões 'Baixar documento'...")
     
+    # Procura por todos os links na página
     for link in soup.find_all('a', href=True):
         texto = link.get_text(strip=True).lower()
         href = link['href']
         
+        # Se for um botão de descarregar, guarda-o na nossa lista
         if 'baixar documento' in texto:
             if href.startswith('http') or href.startswith('/'):
-                pdf_url = href
-                if pdf_url.startswith('/'):
-                    pdf_url = "https://www.ufca.edu.br" + pdf_url
-                break
+                url_completa = href
+                if url_completa.startswith('/'):
+                    url_completa = "https://www.ufca.edu.br" + url_completa
+                
+                pdf_urls.append(url_completa)
             
-    if not pdf_url:
+    if not pdf_urls:
         print("❌ ERRO: O botão 'Baixar documento' não foi encontrado na página.")
         return
 
-    print(f"✅ Botão encontrado! O link verdadeiro do PDF é: {pdf_url}")
-    print("Baixando e lendo o arquivo...")
+    # --- A CORREÇÃO ESTÁ AQUI ---
+    # Em vez de pegar o primeiro, pegamos o último [-1] da lista, que é o mais recente
+    pdf_url = pdf_urls[-1]
+    print(f"✅ Foram encontrados {len(pdf_urls)} cardápios. O mais recente escolhido foi: {pdf_url}")
+    print("A descarregar e a ler o ficheiro...")
     
     try:
         pdf_response = requests.get(pdf_url, headers=headers)
@@ -41,29 +47,16 @@ def atualizar_cardapio():
             tabela_extraida = pagina.extract_table()
             
         if tabela_extraida:
-            print("✅ Tabela extraída com sucesso! Iniciando a limpeza dos dados...")
+            print("✅ Tabela extraída com sucesso! A iniciar a limpeza dos dados...")
             
-            # Limpa linhas totalmente vazias
             tabela_limpa = [linha for linha in tabela_extraida if any(celula for celula in linha)]
-            
-            # Cria a tabela usando a biblioteca Pandas
             df = pd.DataFrame(tabela_limpa[1:], columns=tabela_limpa[0])
             
-            # --- INÍCIO DA FAXINA NOS DADOS ---
-            # Converte tudo para texto
             df = df.astype(str)
-            
-            # Remove a palavra 'None' e substitui por vazio ou traço
             df = df.replace('None', '', regex=False)
-            
-            # Troca o '\n' do PDF pela quebra de linha oficial do HTML (<br>)
             df = df.replace(r'\n', '<br>', regex=True)
-            
-            # Faz a mesma limpeza nos títulos das colunas (cabeçalho)
             df.columns = [str(col).replace('None', '').replace('\n', '<br>') for col in df.columns]
-            # -----------------------------------
             
-            # Transforma em tabela HTML (escape=False permite que o <br> funcione)
             tabela_html = df.to_html(index=False, escape=False, classes='table table-striped table-hover table-bordered text-center align-middle')
             
             html_completo = f"""
@@ -100,13 +93,7 @@ def atualizar_cardapio():
             print("❌ ERRO: Nenhuma tabela legível encontrada.")
             
     except Exception as e:
-        print(f"❌ ERRO ao tentar baixar ou ler o arquivo: {e}")
-
-if __name__ == '__main__':
-    atualizar_cardapio()
-            
-    except Exception as e:
-        print(f"❌ ERRO ao tentar baixar ou ler o arquivo: {e}")
+        print(f"❌ ERRO ao tentar descarregar ou ler o ficheiro: {e}")
 
 if __name__ == '__main__':
     atualizar_cardapio()
