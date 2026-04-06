@@ -1,4 +1,29 @@
-<!DOCTYPE html>
+"""
+visual.py
+─────────
+Gera o index.html como SPA responsivo com Hash Routing.
+"""
+
+import json
+
+# MUDANÇA AQUI: "Proteína" no lugar de "Principal"
+ORDEM_CATEGORIAS = [
+    "Proteína", "Vegetariano", "Sopas", "Guarnição",
+    "Acompanhamentos", "Saladas", "Suco", "Sobremesa",
+]
+
+def gerar_html(dados: dict, caminho: str = "index.html") -> None:
+    json_data = json.dumps(dados, ensure_ascii=False)
+
+    with open(caminho, "w", encoding="utf-8") as f:
+        f.write(_montar_html(json_data))
+
+    print(f"✅ '{caminho}' gerado com sucesso!")
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _montar_html(json_data: str) -> str:
+    return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -7,7 +32,106 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
+    <style>{_css()}</style>
+</head>
+<body>
+
+<div class="router">
+
+    <div class="screen" id="screen-home">
+        <div class="detail-header home-header">
+            <div class="home-title">Cardápio da Semana</div>
+            <div class="home-sub">RU UFCA</div>
+        </div>
+        
+        <div class="home-wrap-scroll">
+            <div class="home-pills">
+                <button class="pill almoco-pill" onclick="goTo('almoco')">
+                    <div class="pill-icon-wrapper">
+                        <img src="img/sol.svg" alt="Sol" class="pill-icon-img">
+                    </div>
+                    <div class="pill-info almoco-info">
+                        <div class="pill-name">Almoço</div>
+                        <div class="pill-time">
+                            {_clock_svg('rgba(0,0,0,0.8)')}
+                            11:00 às 14:00
+                        </div>
+                    </div>
+                </button>
+
+                <button class="pill jantar-pill" onclick="goTo('jantar')">
+                    <div class="pill-info jantar-info">
+                        <div class="pill-name">Jantar</div>
+                        <div class="pill-time jantar-time">
+                            {_clock_svg('rgba(255,255,255,0.9)')}
+                            17:00 às 19:40
+                        </div>
+                    </div>
+                    <div class="pill-icon-wrapper">
+                        <img src="img/lua.svg" alt="Lua" class="pill-icon-img">
+                    </div>
+                </button>
+            </div>
+            
+            <div class="home-footer">
+                O cardápio pode sofrer alterações
+            </div>
+        </div>
+    </div><div class="screen screen-detail" id="screen-almoco">
+        <div class="detail-header almoco-header">
+            <div class="header-top-container">
+                <div class="header-top">
+                    <button class="back-btn" onclick="goBack()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <div class="header-meal-info">
+                        <img src="img/sol.svg" alt="Sol" class="header-svg-icon">
+                        <div>
+                            <div class="header-meal-name">Almoço</div>
+                            <div class="header-meal-sub">RU UFCA • 11:00 às 14:00</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="day-scroller" id="days-almoco"></div>
+            </div>
+        </div>
+        <div class="detail-body-container">
+            <div class="detail-body" id="body-almoco"></div>
+        </div>
+    </div><div class="screen screen-detail" id="screen-jantar">
+        <div class="detail-header jantar-header">
+            <div class="header-top-container">
+                <div class="header-top">
+                    <button class="back-btn jantar-back" onclick="goBack()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <div class="header-meal-info">
+                        <img src="img/lua.svg" alt="Lua" class="header-svg-icon">
+                        <div>
+                            <div class="header-meal-name">Jantar</div>
+                            <div class="header-meal-sub">RU UFCA • 17:00 às 19:40</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="day-scroller" id="days-jantar"></div>
+            </div>
+        </div>
+        <div class="detail-body-container">
+            <div class="detail-body" id="body-jantar"></div>
+        </div>
+    </div></div><script>{_js(json_data)}</script>
+</body>
+</html>"""
+
+def _clock_svg(color: str) -> str:
+    return (
+        f'<svg class="icon-clock" viewBox="0 0 24 24" fill="none" '
+        f'stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+        f'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+    )
+
+def _css() -> str:
+    return """
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -247,95 +371,11 @@ html, body {
     
     .cat-block { margin: 0 30px 24px; padding: 24px 30px; }
 }
-</style>
-</head>
-<body>
+"""
 
-<div class="router">
-
-    <div class="screen" id="screen-home">
-        <div class="detail-header home-header">
-            <div class="home-title">Cardápio da Semana</div>
-            <div class="home-sub">RU UFCA</div>
-        </div>
-        
-        <div class="home-wrap-scroll">
-            <div class="home-pills">
-                <button class="pill almoco-pill" onclick="goTo('almoco')">
-                    <div class="pill-icon-wrapper">
-                        <img src="img/sol.svg" alt="Sol" class="pill-icon-img">
-                    </div>
-                    <div class="pill-info almoco-info">
-                        <div class="pill-name">Almoço</div>
-                        <div class="pill-time">
-                            <svg class="icon-clock" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.8)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            11:00 às 14:00
-                        </div>
-                    </div>
-                </button>
-
-                <button class="pill jantar-pill" onclick="goTo('jantar')">
-                    <div class="pill-info jantar-info">
-                        <div class="pill-name">Jantar</div>
-                        <div class="pill-time jantar-time">
-                            <svg class="icon-clock" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            17:00 às 19:40
-                        </div>
-                    </div>
-                    <div class="pill-icon-wrapper">
-                        <img src="img/lua.svg" alt="Lua" class="pill-icon-img">
-                    </div>
-                </button>
-            </div>
-            
-            <div class="home-footer">
-                O cardápio pode sofrer alterações
-            </div>
-        </div>
-    </div><div class="screen screen-detail" id="screen-almoco">
-        <div class="detail-header almoco-header">
-            <div class="header-top-container">
-                <div class="header-top">
-                    <button class="back-btn" onclick="goBack()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
-                    <div class="header-meal-info">
-                        <img src="img/sol.svg" alt="Sol" class="header-svg-icon">
-                        <div>
-                            <div class="header-meal-name">Almoço</div>
-                            <div class="header-meal-sub">RU UFCA • 11:00 às 14:00</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="day-scroller" id="days-almoco"></div>
-            </div>
-        </div>
-        <div class="detail-body-container">
-            <div class="detail-body" id="body-almoco"></div>
-        </div>
-    </div><div class="screen screen-detail" id="screen-jantar">
-        <div class="detail-header jantar-header">
-            <div class="header-top-container">
-                <div class="header-top">
-                    <button class="back-btn jantar-back" onclick="goBack()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
-                    <div class="header-meal-info">
-                        <img src="img/lua.svg" alt="Lua" class="header-svg-icon">
-                        <div>
-                            <div class="header-meal-name">Jantar</div>
-                            <div class="header-meal-sub">RU UFCA • 17:00 às 19:40</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="day-scroller" id="days-jantar"></div>
-            </div>
-        </div>
-        <div class="detail-body-container">
-            <div class="detail-body" id="body-jantar"></div>
-        </div>
-    </div></div><script>
-const DATA = {"0": {"dia_nome": "Segunda-feira", "data": "6/abr", "almoco": {"Proteína": ["Panqueca de Frango", "Suíno Acebolado"], "Vegetariano": ["Panqueca de Soja com Legumes"], "Saladas": ["Alface, Acelga, Repolho Roxo e Cenoura", "Macaxeira Gratinada"], "Guarnição": ["Macarrão"], "Acompanhamentos": ["Arroz Branco", "Arroz Integral", "Feijão Carioca"], "Suco": ["Abacaxi"], "Sobremesa": ["Melancia", "Doce"]}, "jantar": {}}, "1": {"dia_nome": "Terça-feira", "data": "7/abr", "almoco": {"Proteína": ["Isca a Chinesa", "Frango Crocante"], "Vegetariano": ["Lasanha de Brócolis"], "Saladas": ["Acelga,repolho Roxo, Tomate, Cebola Roxa e Manga", "Beterraba com Milho"], "Guarnição": ["Cuscuz"], "Acompanhamentos": ["Arroz Branco", "Arroz Integral", "Feijão de Corda"], "Suco": ["Manga"], "Sobremesa": ["Mamão", "Doce"]}, "jantar": {}}, "2": {"dia_nome": "Quarta-feira", "data": "8/abr", "almoco": {"Proteína": ["Feijoada à Brasileira", "Frango ao Molho Barbecue"], "Vegetariano": ["Omelete de Forno"], "Saladas": ["Alface, Cenoura, Tomate e Laranja", "Chuchu Salteado"], "Guarnição": ["Farofa"], "Acompanhamentos": ["Arroz Branco", "Arroz Integral", "Feijão Carioca"], "Suco": ["Cajá"], "Sobremesa": ["Laranja", "Doce"]}, "jantar": {}}, "3": {"dia_nome": "Quinta-feira", "data": "9/abr", "almoco": {"Proteína": ["Lasanha de Frango", "Cubos Bovino ao Molho Madeira"], "Vegetariano": ["Curry de Grão de Bico e Couve Flor"], "Saladas": ["Repolho Agridoce", "Batata Gratinada"], "Guarnição": ["Farofa"], "Acompanhamentos": ["Arroz Branco", "Arroz Integral", "Feijão Corda"], "Suco": ["Goiaba"], "Sobremesa": ["Melão", "Doce"]}, "jantar": {}}, "4": {"dia_nome": "Sexta-feira", "data": "10/abr", "almoco": {"Proteína": ["Peixe ao Molho", "Bechamel Frango ao Molho Pomodoro"], "Vegetariano": ["Hamburguer de Soja"], "Saladas": ["Alface, Acelga, Pepino e Laranja", "Batata Doce"], "Guarnição": ["Cuscuz"], "Acompanhamentos": ["Arroz Branco", "Arroz Integral", "Feijão Carioca"], "Suco": ["Graviola"], "Sobremesa": ["Maçã", "Doce"]}, "jantar": {}}};
+def _js(json_data: str) -> str:
+    return f"""
+const DATA = {json_data};
 
 // MUDANÇA AQUI: "Proteína" no lugar de "Principal"
 const ORDEM = [
@@ -344,71 +384,71 @@ const ORDEM = [
 ];
 const ABREV = ["SEG","TER","QUA","QUI","SEX"];
 
-const state = { almoco: 0, jantar: 0 };
+const state = {{ almoco: 0, jantar: 0 }};
 
 /* ── Hash Routing para navegação nativa do dispositivo ── */
-function handleHashChange() {
+function handleHashChange() {{
     let hash = window.location.hash.replace('#', '') || 'home';
     if (!['home', 'almoco', 'jantar'].includes(hash)) hash = 'home';
     
     const prevs = document.querySelectorAll('.screen.active');
     const next = document.getElementById('screen-' + hash);
     
-    prevs.forEach(prev => {
-        if (prev.id !== 'screen-' + hash) {
-            if (hash === 'home') {
+    prevs.forEach(prev => {{
+        if (prev.id !== 'screen-' + hash) {{
+            if (hash === 'home') {{
                 prev.classList.remove('active'); 
-            } else {
+            }} else {{
                 prev.classList.add('exit-left'); 
-            }
-        }
-    });
+            }}
+        }}
+    }});
     
     next.classList.add('active');
     next.classList.remove('exit-left');
     
     if (hash === 'almoco') renderDetail('almoco', state.almoco);
     if (hash === 'jantar') renderDetail('jantar', state.jantar);
-}
+}}
 
 window.addEventListener('hashchange', handleHashChange);
 
-function goTo(id) {
+function goTo(id) {{
     window.location.hash = id;
-}
+}}
 
-function goBack() {
+function goBack() {{
     window.history.back();
-    setTimeout(() => {
-        if (window.location.hash !== '#home' && window.location.hash !== '') {
+    setTimeout(() => {{
+        if (window.location.hash !== '#home' && window.location.hash !== '') {{
             window.location.hash = 'home';
-        }
-    }, 100);
-}
+        }}
+    }}, 100);
+}}
 
-function buildDayChips(tipo) {
+function buildDayChips(tipo) {{
     const container = document.getElementById('days-' + tipo);
     container.innerHTML = '';
 
-    ABREV.forEach((abrev, i) => {
+    ABREV.forEach((abrev, i) => {{
         const chip = document.createElement('button');
         chip.className = 'day-chip' + (i === state[tipo] ? ' active' : '');
-        chip.innerHTML = `<span class="chip-day">${abrev}</span><span class="chip-date">${DATA[i].data}</span>`;
+        chip.innerHTML = `<span class="chip-day">${{abrev}}</span><span class="chip-date">${{DATA[i].data}}</span>`;
         chip.onclick = () => selectDay(tipo, i);
         container.appendChild(chip);
-    });
-}
+    }});
+}}
 
-function selectDay(tipo, idx) {
+function selectDay(tipo, idx) {{
     state[tipo] = idx;
-    document.querySelectorAll('#days-' + tipo + ' .day-chip').forEach((c, i) => {
+    document.querySelectorAll('#days-' + tipo + ' .day-chip').forEach((c, i) => {{
         if(i === idx) c.classList.add('active');
         else c.classList.remove('active');
-    });
+    }});
     renderBody(tipo, idx);
-}
+}}
 
-function renderBody(tipo, idx) {
+function renderBody(tipo, idx) {{
     const dia   = DATA[idx];
     const dados = dia[tipo];
     const body  = document.getElementById('body-' + tipo);
@@ -418,42 +458,40 @@ function renderBody(tipo, idx) {
     let html = '';
 
     let temConteudo = false;
-    ORDEM.forEach(cat => {
-        if (dados[cat]?.length) {
+    ORDEM.forEach(cat => {{
+        if (dados[cat]?.length) {{
             temConteudo = true;
             html += `<div class="cat-block">
-                <div class="cat-title">${cat}</div>
-                ${dados[cat].map(i => `<span class="food-item">${i}</span>`).join('')}
+                <div class="cat-title">${{cat}}</div>
+                ${{dados[cat].map(i => `<span class="food-item">${{i}}</span>`).join('')}}
             </div>`;
-        }
-    });
+        }}
+    }});
 
-    if (!temConteudo) {
+    if (!temConteudo) {{
         html += '<div class="empty">Nenhum cardápio disponível para este dia.</div>';
-    }
+    }}
 
     body.className = 'detail-body ' + bodyClass;
     body.innerHTML = html;
     
-    document.querySelector('.detail-body-container').scrollTo({ top: 0, behavior: 'smooth' });
-}
+    document.querySelector('.detail-body-container').scrollTo({{ top: 0, behavior: 'smooth' }});
+}}
 
-function renderDetail(tipo, idx) {
+function renderDetail(tipo, idx) {{
     buildDayChips(tipo);
     renderBody(tipo, idx);
-}
+}}
 
-(function init() {
+(function init() {{
     const d = new Date().getDay();
     const hoje = (d === 0 || d === 6) ? 0 : d - 1;
     state.almoco = hoje;
     state.jantar  = hoje;
 
-    if (!window.location.hash) {
+    if (!window.location.hash) {{
         history.replaceState(null, null, '#home');
-    }
+    }}
     handleHashChange();
-}());
-</script>
-</body>
-</html>
+}}());
+"""
