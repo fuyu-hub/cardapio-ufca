@@ -2,32 +2,38 @@ name: Atualizar Cardápio Automaticamente
 
 on:
   schedule:
-    # Roda toda segunda-feira às 07:00 UTC (04:00 no horário de Brasília)
-    - cron: '0 7 * * 1'
-  workflow_dispatch: # Permite rodar o robô manualmente clicando em um botão
+    # Horários de DOMINGO (15h, 18h, 21h, 00h UTC -> 12h, 15h, 18h, 21h Brasília)
+    - cron: '0 15,18,21 * * 0'
+    - cron: '0 0 * * 1' # Meia-noite de segunda UTC = 21h de domingo BRT
+
+    # Horários de SEGUNDA-FEIRA (10h, 13h, 15h, 17h, 19h UTC -> 07h, 10h, 12h, 14h, 16h, 18h Brasília)
+    - cron: '0 10,13,15,17,19,21 * * 1'
+    
+  workflow_dispatch:
 
 jobs:
-  atualizar-site:
+  atualizar:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Baixar os arquivos do repositório
+      - name: Checkout do repositório
         uses: actions/checkout@v3
 
-      - name: Preparar o Python
+      - name: Configurar Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Instalar bibliotecas
+      - name: Instalar dependências
         run: pip install -r requirements.txt
 
-      - name: Executar o robô
+      - name: Rodar o Scraper
         run: python scraper.py
 
-      - name: Salvar o novo index.html no GitHub
+      - name: Commit e Push (se houver alterações)
         run: |
-          git config --global user.name 'Robo Cardapio'
-          git config --global user.email 'bot@seuemail.com'
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Atualiza cardápio da semana" || exit 0
-          git push
+          # Verifica se o index.html foi alterado. Se foi, faz o commit. Se não, encerra silenciosamente.
+          git diff --staged --quiet || (git commit -m "Atualiza cardápio da semana" && git push)
