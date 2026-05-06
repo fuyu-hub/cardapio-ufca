@@ -47,12 +47,23 @@ def validar_semana_atual(dados):
         hoje += timedelta(days=7 - hoje.weekday())
         
     segunda = hoje - timedelta(days=hoje.weekday())
-    dias_esperados = [(segunda + timedelta(days=i)).strftime("%d") for i in range(5)]
-    dias_pdf = [str(dados[i]["data"]) for i in range(5) if dados[i]["data"]]
+    
+    meses_pt = {
+        1: "jan", 2: "fev", 3: "mar", 4: "abr", 5: "mai", 6: "jun",
+        7: "jul", 8: "ago", 9: "set", 10: "out", 11: "nov", 12: "dez"
+    }
+    
+    dias_esperados = []
+    for i in range(5):
+        dia_atual = segunda + timedelta(days=i)
+        dias_esperados.append(f"{dia_atual.day:02d}/{meses_pt[dia_atual.month]}")
+        dias_esperados.append(f"{dia_atual.day}/{meses_pt[dia_atual.month]}")
+        
+    dias_pdf = [str(dados[i]["data"]).lower() for i in range(5) if dados[i]["data"]]
     
     for dia_esperado in dias_esperados:
         for dia_pdf in dias_pdf:
-            if dia_esperado in dia_pdf:
+            if dia_esperado == dia_pdf:
                 return True
                 
     return False
