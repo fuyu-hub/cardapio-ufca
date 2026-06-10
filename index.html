@@ -140,8 +140,44 @@ html, body {
     color: #ffffff;
     font-weight: 600;
     margin-top: 30px; 
-    margin-bottom: 20px;
+    margin-bottom: 5px;
     opacity: 0.8;
+}
+
+.credits-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+    margin-bottom: 0;
+    font-family: var(--font-ui);
+    font-size: clamp(12px, 3vw, 14px);
+    color: var(--muted);
+}
+.credits-title {
+    font-weight: 600;
+}
+.credits-links {
+    display: flex;
+    gap: 15px;
+}
+.credit-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+.credit-link:hover {
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+.credit-link svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
 }
 
 /* ══════════════════════════════════════
@@ -290,6 +326,20 @@ html, body {
             
             <div class="home-footer">
                 O cardápio pode sofrer alterações
+            </div>
+            
+            <div class="credits-container">
+                <div class="credits-title">Desenvolvido por:</div>
+                <div class="credits-links">
+                    <a href="https://github.com/fuyu-hub" target="_blank" class="credit-link">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-3.975-1.395-.09-.225-.48-1.395-.825-1.68-.285-.225-.69-.585-.015-.6.645-.015 1.11.585 1.275.855.75 1.275 1.95.9 2.43.69.075-.54.285-.9.525-1.11-2.655-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.3.255.555.735.555 1.485 0 1.08-.015 1.935-.015 2.19 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                        Samuel Sousa
+                    </a>
+                    <a href="https://github.com/lucasravelli2004-maker" target="_blank" class="credit-link">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-3.975-1.395-.09-.225-.48-1.395-.825-1.68-.285-.225-.69-.585-.015-.6.645-.015 1.11.585 1.275.855.75 1.275 1.95.9 2.43.69.075-.54.285-.9.525-1.11-2.655-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.3.255.555.735.555 1.485 0 1.08-.015 1.935-.015 2.19 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                        Lucas Ravelli
+                    </a>
+                </div>
             </div>
         </div>
     </div><div class="screen screen-detail" id="screen-almoco">
