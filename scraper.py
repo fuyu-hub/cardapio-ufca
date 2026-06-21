@@ -78,8 +78,8 @@ def extrair_dados_estruturados(df):
         4: {"dia_nome": "Sexta-feira",   "data": "", "almoco": {}, "jantar": {}},
     }
 
-    # Procura as datas nas primeiras 3 linhas para garantir
-    for _, row in df.head(3).iterrows():
+    # Procura as datas em todas as linhas para garantir
+    for _, row in df.iterrows():
         for i in range(1, 6):
             if i < len(row):
                 cell = str(row.iloc[i]).lower()
@@ -92,9 +92,10 @@ def extrair_dados_estruturados(df):
 
     for _, row in df.iterrows():
         col0 = str(row.iloc[0]).strip().upper()
+        col0_clean = re.sub(r'[^A-Z]', '', col0)
 
         # ASSUME PROTEÍNA COMO PADRÃO: Se a linha for o cabeçalho, qualquer comida solta já será Proteína
-        if "ALMOÇO" in col0:
+        if "ALMOÇO" in col0 or "ALMOCO" in col0:
             refeicao_atual = "almoco"
             categoria_atual = "Proteína"
         elif "JANTAR" in col0:
@@ -102,21 +103,30 @@ def extrair_dados_estruturados(df):
             categoria_atual = "Proteína"
 
         cat_detectada = ""
-        if col0 and col0 not in ["NAN", "NONE", ""]:
-            if   "PRINCIPAL"      in col0: cat_detectada = "Proteína"
-            elif "PROTE"          in col0: cat_detectada = "Proteína"
-            elif "VEGETARIANO"    in col0: cat_detectada = "Vegetariano"
-            elif "SALADA"         in col0: cat_detectada = "Saladas"
-            elif "GUARNI"         in col0: cat_detectada = "Guarnição"
-            elif "ACOMPANHAMEN"   in col0: cat_detectada = "Acompanhamentos"
-            elif "SUCO"           in col0: cat_detectada = "Suco"
-            elif "SOBREMESA"      in col0: cat_detectada = "Sobremesa"
-            elif "SOPA"           in col0: cat_detectada = "Sopas"
+        if col0_clean:
+            if   "PRINCIPAL" in col0_clean: cat_detectada = "Proteína"
+            elif "PROTE"     in col0_clean: cat_detectada = "Proteína"
+            elif "VEGETARI"  in col0_clean: cat_detectada = "Vegetariano"
+            elif "SALADA"    in col0_clean: cat_detectada = "Saladas"
+            elif "GUARNI"    in col0_clean: cat_detectada = "Guarnição"
+            elif "ACOMPANHA" in col0_clean or "COMPANHA" in col0_clean: cat_detectada = "Acompanhamentos"
+            elif "SUCO"      in col0_clean: cat_detectada = "Suco"
+            elif "SOBREMESA" in col0_clean: cat_detectada = "Sobremesa"
+            elif "SOPA"      in col0_clean: cat_detectada = "Sopas"
 
         if cat_detectada:
             categoria_atual = cat_detectada
 
         if not categoria_atual:
+            continue
+
+        # Evita herdar a categoria em linhas que na verdade contêm datas (como a linha de cabeçalho intermediária)
+        is_date_row = False
+        for val in row.iloc[1:6]:
+            if re.search(r"\b(\d{1,2}/[a-z]{3})\b", str(val).lower()):
+                is_date_row = True
+                break
+        if is_date_row:
             continue
 
         categorias_longas = ["Proteína", "Vegetariano", "Saladas", "Sopas"]
@@ -141,6 +151,10 @@ def extrair_dados_estruturados(df):
                         linha = linha.strip()
                         
                         if not linha or linha.isnumeric():
+                            continue
+                            
+                        # Ignorar observações / avisos / notas de rodapé
+                        if re.search(r"\b(obs|observação|observações|alteração|alterações|dependendo|disponibilidade|estoque|produtos|dutos)\b", linha, flags=re.IGNORECASE):
                             continue
                             
                         # Inteligência de agrupamento: se a linha começa com * ou -, é um prato novo
