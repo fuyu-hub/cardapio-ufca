@@ -1,547 +1,662 @@
 """
 visual.py
 ─────────
-Gera o index.html como SPA responsivo com Hash Routing.
+Gera o index.html: uma página só (sem servidor), com roteamento por hash.
+
+Telas:
+  #inicio          dia de hoje + cartões Almoço/Jantar + créditos
+  #almoco/#jantar  cardápio da refeição no dia escolhido (tocar de novo volta ao início)
+  #semana          resumo da semana (pratos principais de cada dia)
+
+Os dados vão embutidos no HTML; o próprio navegador decide qual semana mostrar
+(a corrente até sexta, a próxima a partir de sábado).
 """
 
 import json
 
-# MUDANÇA AQUI: "Proteína" no lugar de "Principal"
-ORDEM_CATEGORIAS = [
-    "Proteína", "Vegetariano", "Sopas", "Guarnição",
-    "Acompanhamentos", "Saladas", "Suco", "Sobremesa",
-]
+# Categorias como vêm do scraper → como aparecem na tela.
+# "principal" ganha destaque; "vegetariano" vira uma linha própria; o resto vira cartões.
+CATEGORIAS = {
+    "principal": "Proteína",
+    "vegetariano": "Vegetariano",
+    "extras": [
+        ["Sopas", "Sopa"],
+        ["Acompanhamentos", "Acompanhamentos"],
+        ["Guarnição", "Guarnição"],
+        ["Saladas", "Saladas"],
+        ["Suco", "Suco"],
+        ["Sobremesa", "Sobremesa"],
+    ],
+}
 
-def gerar_html(dados: dict, caminho: str = "index.html") -> None:
-    json_data = json.dumps(dados, ensure_ascii=False)
+
+def gerar_html(semanas: dict, caminho: str = "index.html") -> None:
+    """semanas: {"AAAA-MM-DD" (segunda-feira): dados da semana}."""
+    dados = json.dumps(semanas, ensure_ascii=False, sort_keys=True)
+    meta = json.dumps(CATEGORIAS, ensure_ascii=False)
+
+    html = (_HTML
+            .replace("__CSS__", _CSS)
+            .replace("__JS__", _JS.replace("__DADOS__", dados).replace("__META__", meta)))
 
     with open(caminho, "w", encoding="utf-8") as f:
-        f.write(_montar_html(json_data))
+        f.write(html)
 
     print(f"✅ '{caminho}' gerado com sucesso!")
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _montar_html(json_data: str) -> str:
-    return f"""<!DOCTYPE html>
+_GITHUB_SVG = (
+    '<svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 '
+    '5.31 3.44 9.8 8.2 11.39.6.1.83-.26.83-.57v-2.24c-3.02.56-3.8-.74-3.98-1.4-.09-.22-.48-.93-.82-1.12-.29'
+    '-.15-.69-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-2.67-.3-5.46'
+    '-1.34-5.46-5.93 0-1.31.47-2.39 1.24-3.23-.12-.3-.54-1.53.12-3.18 0 0 1-.31 3.3 1.23.96-.27 1.98-.4 '
+    '3-.4s2.04.13 3 .4c2.3-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.23 0 '
+    '4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57A12 12 0 0 0 24 12c0-6.63-5.37'
+    '-12-12-12z"/></svg>'
+)
+
+_RELOGIO_SVG = (
+    '<svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+    '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+)
+
+_SETA_SVG = (
+    '<svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    'stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+)
+
+_HTML = """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121216">
     <title>Cardápio RU — UFCA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <style>{_css()}</style>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>__CSS__</style>
 </head>
 <body>
+<main class="app">
 
-<div class="router">
+    <!-- Cabeçalho grande: só na tela inicial -->
+    <header class="home-header" id="home-header">
+        <h1 class="home-title">Cardápio da Semana</h1>
+        <div class="home-sub">RU UFCA</div>
+        <div class="home-week" id="home-week"></div>
+        <div class="home-next" id="home-next" hidden>Cardápio da próxima semana já disponível</div>
+    </header>
 
-    <div class="screen" id="screen-home">
-        <div class="detail-header home-header">
-            <div class="home-title">Cardápio da Semana</div>
-            <div class="home-sub">RU UFCA</div>
-        </div>
-        
-        <div class="home-wrap-scroll">
-            <div class="home-pills">
-                <button class="pill almoco-pill" onclick="goTo('almoco')">
-                    <div class="pill-icon-wrapper">
-                        <img src="img/sol.svg" alt="Sol" class="pill-icon-img">
-                    </div>
-                    <div class="pill-info almoco-info">
-                        <div class="pill-name">Almoço</div>
-                        <div class="pill-time">
-                            {_clock_svg('rgba(0,0,0,0.8)')}
-                            11:00 às 14:00
-                        </div>
-                    </div>
+    <!-- Barra compacta: dentro das refeições e na semana -->
+    <header class="topbar" id="topbar">
+        <div class="brand">RU UFCA</div>
+        <div class="week-pill" id="week-pill"></div>
+    </header>
+
+    <!-- ══ HOJE: tela inicial e cardápio da refeição ══ -->
+    <section class="view" id="view-hoje">
+        <div class="stale" id="stale" hidden></div>
+
+        <!-- Nenhuma refeição marcada: tela inicial -->
+        <div class="inicio" id="inicio">
+            <div class="meal-cards">
+                <button class="meal-card almoco" onclick="selecionarRefeicao('almoco')">
+                    <span class="icon-box"><img src="img/sol.svg" alt=""></span>
+                    <span class="meal-info">
+                        <span class="meal-name">Almoço</span>
+                        <span class="meal-time">""" + _RELOGIO_SVG + """ 11:00 às 14:00</span>
+                    </span>
                 </button>
-
-                <button class="pill jantar-pill" onclick="goTo('jantar')">
-                    <div class="pill-info jantar-info">
-                        <div class="pill-name">Jantar</div>
-                        <div class="pill-time jantar-time">
-                            {_clock_svg('rgba(255,255,255,0.9)')}
-                            17:00 às 19:40
-                        </div>
-                    </div>
-                    <div class="pill-icon-wrapper">
-                        <img src="img/lua.svg" alt="Lua" class="pill-icon-img">
-                    </div>
+                <button class="meal-card jantar" onclick="selecionarRefeicao('jantar')">
+                    <span class="icon-box"><img src="img/lua.svg" alt=""></span>
+                    <span class="meal-info">
+                        <span class="meal-name">Jantar</span>
+                        <span class="meal-time">""" + _RELOGIO_SVG + """ 17:00 às 19:40</span>
+                    </span>
                 </button>
             </div>
-            
-            <div class="home-footer">
-                O cardápio pode sofrer alterações
-            </div>
-            
-            <div class="credits-container">
+
+            <a class="week-link" href="#semana" onclick="irPara('semana'); return false;">Ver a semana inteira """ + _SETA_SVG + """</a>
+            <p class="disclaimer">O cardápio pode sofrer alterações</p>
+
+            <footer class="credits">
                 <div class="credits-title">Desenvolvido por:</div>
                 <div class="credits-links">
-                    <a href="https://github.com/fuyu-hub" target="_blank" class="credit-link">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-3.975-1.395-.09-.225-.48-1.395-.825-1.68-.285-.225-.69-.585-.015-.6.645-.015 1.11.585 1.275.855.75 1.275 1.95.9 2.43.69.075-.54.285-.9.525-1.11-2.655-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.3.255.555.735.555 1.485 0 1.08-.015 1.935-.015 2.19 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-                        Samuel Sousa
-                    </a>
-                    <a href="https://github.com/lucasravelli2004-maker" target="_blank" class="credit-link">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-3.975-1.395-.09-.225-.48-1.395-.825-1.68-.285-.225-.69-.585-.015-.6.645-.015 1.11.585 1.275.855.75 1.275 1.95.9 2.43.69.075-.54.285-.9.525-1.11-2.655-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.3.255.555.735.555 1.485 0 1.08-.015 1.935-.015 2.19 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-                        Lucas Ravelli
-                    </a>
+                    <a href="https://github.com/fuyu-hub" target="_blank" rel="noopener">""" + _GITHUB_SVG + """ Samuel Sousa</a>
+                    <a href="https://github.com/lucasravelli2004-maker" target="_blank" rel="noopener">""" + _GITHUB_SVG + """ Lucas Ravelli</a>
                 </div>
+            </footer>
+        </div>
+
+        <!-- Refeição marcada: cardápio -->
+        <div class="refeicao" id="refeicao" hidden>
+            <div class="meal-tabs">
+                <button class="meal-tab almoco" id="tab-almoco" onclick="selecionarRefeicao('almoco')">
+                    <span class="icon-box small"><img src="img/sol.svg" alt=""></span>
+                    <span class="tab-info"><span class="tab-name">Almoço</span><span class="tab-time">11:00 às 14:00</span></span>
+                    <svg aria-hidden="true" class="icon tab-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <button class="meal-tab jantar" id="tab-jantar" onclick="selecionarRefeicao('jantar')">
+                    <span class="icon-box small"><img src="img/lua.svg" alt=""></span>
+                    <span class="tab-info"><span class="tab-name">Jantar</span><span class="tab-time">17:00 às 19:40</span></span>
+                    <svg aria-hidden="true" class="icon tab-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="days" id="days" role="group" aria-label="Escolher dia"></div>
+
+            <div id="menu"></div>
+
+            <a class="week-link" href="#semana" onclick="irPara('semana'); return false;">Ver a semana inteira """ + _SETA_SVG + """</a>
+            <p class="disclaimer">O cardápio pode sofrer alterações</p>
+        </div>
+    </section>
+
+    <!-- ══ SEMANA: resumo ══ -->
+    <section class="view" id="view-semana" hidden>
+        <div class="semana-head">
+            <button class="back-btn" onclick="voltar()" aria-label="Voltar">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div>
+                <h1 class="semana-title" id="semana-title"></h1>
+                <div class="semana-sub">Pratos principais de cada dia</div>
             </div>
         </div>
-    </div><div class="screen screen-detail" id="screen-almoco">
-        <div class="detail-header almoco-header">
-            <div class="header-top-container">
-                <div class="header-top">
-                    <button class="back-btn" onclick="goBack()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
-                    <div class="header-meal-info">
-                        <img src="img/sol.svg" alt="Sol" class="header-svg-icon">
-                        <div>
-                            <div class="header-meal-name">Almoço</div>
-                            <div class="header-meal-sub">RU UFCA • 11:00 às 14:00</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="day-scroller" id="days-almoco"></div>
-            </div>
-        </div>
-        <div class="detail-body-container">
-            <div class="detail-body" id="body-almoco"></div>
-        </div>
-    </div><div class="screen screen-detail" id="screen-jantar">
-        <div class="detail-header jantar-header">
-            <div class="header-top-container">
-                <div class="header-top">
-                    <button class="back-btn jantar-back" onclick="goBack()">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    </button>
-                    <div class="header-meal-info">
-                        <img src="img/lua.svg" alt="Lua" class="header-svg-icon">
-                        <div>
-                            <div class="header-meal-name">Jantar</div>
-                            <div class="header-meal-sub">RU UFCA • 17:00 às 19:40</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="day-scroller" id="days-jantar"></div>
-            </div>
-        </div>
-        <div class="detail-body-container">
-            <div class="detail-body" id="body-jantar"></div>
-        </div>
-    </div></div><script>{_js(json_data)}</script>
+        <div class="week-toggle" id="week-toggle-semana" role="group" aria-label="Escolher semana" hidden></div>
+        <div class="semana-list" id="semana-list"></div>
+    </section>
+
+</main>
+<script>__JS__</script>
 </body>
 </html>"""
 
-def _clock_svg(color: str) -> str:
-    return (
-        f'<svg class="icon-clock" viewBox="0 0 24 24" fill="none" '
-        f'stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
-        f'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
-    )
-
-def _css() -> str:
-    return """
-/* ── Reset ── */
+_CSS = """
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
     --bg:        #121216;
     --surface:   #1c1c24;
     --surface2:  #252530;
-    --border:    rgba(255,255,255,0.06);
+    --line:      rgba(255,255,255,0.06);
     --text:      #f0f0f5;
+    --text2:     #E2E2EA;
     --muted:     #9e9ea7;
+    --veg:       #b9e4a5;
     --font-ui:   'Nunito', system-ui, sans-serif;
-    --font-main: 'Montserrat', sans-serif;
-    --orange: #f97902;
-    --orange-light: #ffc700;
-    --blue: #2464D2;
-    --blue-light: #4BA1FF;
-    --dur:       350ms;
-    --ease:      cubic-bezier(0.4, 0, 0.2, 1);
+    --font-main: 'Montserrat', system-ui, sans-serif;
+    --orange: #f97902;  --orange-light: #ffc700;
+    --blue:   #2464D2;  --blue-light:   #4BA1FF;
+    --grad-almoco: linear-gradient(135deg, var(--orange), var(--orange-light));
+    --grad-jantar: linear-gradient(135deg, var(--blue), var(--blue-light));
+    --acento: var(--orange-light);
 }
+body.jantar { --acento: var(--blue-light); }
 
-html, body {
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
+html { background: var(--bg); }
+body {
+    min-height: 100dvh;
+    background: var(--bg); color: var(--text);
     font-family: var(--font-ui);
-    color: var(--text);
     -webkit-tap-highlight-color: transparent;
 }
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+.icon { width: 1em; height: 1em; flex-shrink: 0; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
 
-.router { position: relative; width: 100%; height: 100dvh; overflow: hidden; }
-
-.screen {
-    position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden;
-    transform: translateX(100%);
-    transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
-    opacity: 0; pointer-events: none;
-    display: flex; flex-direction: column;
+.app {
+    width: 100%; max-width: 560px; min-height: 100dvh; margin: 0 auto;
+    padding: 20px 20px 24px;
+    display: flex; flex-direction: column; gap: 16px;
 }
-.screen.active { transform: translateX(0); opacity: 1; pointer-events: auto; }
-.screen.exit-left { transform: translateX(-30%); opacity: 0; pointer-events: none; }
+.view { display: flex; flex-direction: column; gap: 16px; flex: 1; }
 
-/* ══════════════════════════════════════
-   TELA HOME
-   ══════════════════════════════════════ */
-#screen-home { background: var(--bg); }
-
-/* ── HEADER HOME ── */
+/* ── Topo ── */
 .home-header {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    width: 100%; height: clamp(100px, 12vh, 140px);
-    font-family: var(--font-main);
+    margin: -20px -20px 0; padding: 30px 20px 22px;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+    display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+}
+.home-title { font-family: var(--font-main); font-size: clamp(24px, 7vw, 30px); font-weight: 800; line-height: 1.2; color: #fff; }
+.home-sub { font-family: var(--font-main); font-size: clamp(17px, 5vw, 20px); font-weight: 700; color: #cccccc; }
+.home-week { font-size: 14px; font-weight: 700; color: var(--muted); margin-top: 2px; }
+.home-next {
+    margin-top: 8px; padding: 5px 14px; border-radius: 999px;
+    background: rgba(75,161,255,0.14); color: var(--blue-light); font-size: 12px; font-weight: 800;
+}
+@media (min-width: 600px) {
+    .home-header { margin: -20px 0 0; border-radius: 0 0 20px 20px; border: 1px solid var(--line); border-top: none; }
 }
 
-.home-title {
-    font-size: clamp(22px, 5vw, 30px);
-    font-weight: 800; color: #ffffff; line-height: 1.2; text-align: center;
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--font-main); font-size: 18px; font-weight: 900; letter-spacing: 0.5px; }
+.week-pill {
+    padding: 5px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--muted); font-size: 12px; font-weight: 800; white-space: nowrap;
 }
 
-.home-sub {
-    font-size: clamp(16px, 4vw, 22px);
-    font-weight: 700; color: #cccccc; margin-top: 4px;
+
+.stale {
+    padding: 12px 16px; border-radius: 16px;
+    background: rgba(255,199,0,0.12); border: 1px solid rgba(255,199,0,0.35);
+    color: var(--orange-light); font-weight: 700; font-size: 14px; line-height: 1.4; text-align: center;
 }
 
-.home-wrap-scroll {
-    flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center;
-    padding: clamp(30px, 5vh, 50px) 20px 40px;
+/* ── Seletor de semana (só quando a próxima já saiu) ── */
+.week-toggle { display: flex; gap: 4px; padding: 4px; background: var(--surface); border-radius: 12px; }
+.week-btn {
+    flex: 1; border-radius: 9px; padding: 8px 6px; color: var(--muted);
+    font-size: 14px; font-weight: 800; line-height: 1.2;
 }
+.week-btn small { display: block; font-size: 12px; font-weight: 700; opacity: 0.85; }
+.week-btn.active { background: var(--text); color: var(--bg); }
 
-/* ── CARDS (PILLS) ── */
-.home-pills {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 30px; width: 100%; max-width: 600px;
+/* ── Dias ── */
+.days { display: flex; gap: 8px; }
+.day-btn {
+    flex: 1 1 0; min-width: 0; height: 62px; border-radius: 16px;
+    background: var(--surface); color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    transition: background 0.15s, color 0.15s;
 }
+.day-btn .sigla { font-size: 11px; font-weight: 800; }
+.day-btn .num { font-family: var(--font-main); font-size: 18px; font-weight: 900; }
+.day-btn.active { background: var(--text); color: var(--bg); }
+.day-btn.hoje:not(.active) { box-shadow: inset 0 0 0 2px rgba(240,240,245,0.35); }
 
-.pill {
-    display: flex; flex-direction: row; align-items: center;
-    width: 100%; max-width: 600px;
-    aspect-ratio: 3 / 1; 
-    border: none; border-radius: clamp(20px, 4vw, 32px);
-    padding: 0; cursor: pointer;
-    font-family: var(--font-main);
-    transition: transform 0.15s, filter 0.15s; outline: none;
+/* ── Tela inicial ── */
+.inicio { display: flex; flex-direction: column; gap: 20px; flex: 1; padding-top: 8px; }
+.meal-cards { display: flex; flex-direction: column; gap: 20px; }
+.meal-card {
+    width: 100%; height: clamp(100px, 30vw, 124px); border-radius: 22px;
+    display: flex; align-items: center; font-family: var(--font-main);
+    transition: transform 0.15s, filter 0.15s;
 }
-.pill:hover  { transform: translateY(-3px); filter: brightness(1.05); }
-.pill:active { transform: scale(0.97); }
+.meal-card:hover { transform: translateY(-2px); filter: brightness(1.05); }
+.meal-card:active { transform: scale(0.98); }
+.meal-card.almoco { background: var(--grad-almoco); color: #000; box-shadow: 0 10px 30px rgba(249,121,2,0.3); }
+.meal-card.jantar { background: var(--grad-jantar); color: #fff; box-shadow: 0 10px 30px rgba(36,100,210,0.3); flex-direction: row-reverse; }
+.meal-card .icon-box { width: 38%; height: 100%; border-radius: 22px; }
+.meal-card .icon-box img { width: 56%; max-width: 80px; }
+.meal-info { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.meal-name { font-size: clamp(26px, 8vw, 32px); font-weight: 900; line-height: 1; }
+.meal-time { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; font-family: var(--font-ui); }
 
-.almoco-pill {
-    background: linear-gradient(135deg, var(--orange), var(--orange-light));
-    box-shadow: 0 10px 30px rgba(249, 121, 2, 0.3); 
-}
+.icon-box { background: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-box img { display: block; height: auto; }
+.icon-box.small { width: 40px; height: 40px; border-radius: 11px; }
+.icon-box.small img { width: 27px; }
 
-.jantar-pill {
-    background: linear-gradient(135deg, var(--blue), var(--blue-light));
-    box-shadow: 0 10px 30px rgba(36, 100, 210, 0.3);
+.week-link {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 14px; border-radius: 14px; background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.08); text-decoration: none; font-weight: 800; font-size: 15px;
 }
+.week-link:hover { background: var(--surface2); }
+.disclaimer { text-align: center; font-size: 14px; font-weight: 600; color: var(--muted); }
 
-/* Card Branco lateral */
-.pill-icon-wrapper {
-    width: 41.66%;
-    height: 100%;
-    background: #ffffff;
-    border-radius: clamp(20px, 4vw, 32px);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+.credits {
+    margin-top: auto; padding-top: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    font-size: 13px; color: var(--muted);
 }
+.credits-title { font-weight: 600; }
+.credits-links { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.credits-links a { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--muted); }
+.credits-links a:hover { color: #fff; }
+.credits-links svg { width: 16px; height: 16px; }
 
-.pill-icon-img {
-    width: clamp(60px, 20vw, 150px);
-    height: clamp(60px, 20vw, 150px);
-    object-fit: contain;
+/* ── Refeição aberta ── */
+.refeicao { display: flex; flex-direction: column; gap: 16px; }
+.meal-tabs { display: flex; gap: 10px; }
+.meal-tab {
+    position: relative;
+    flex: 1 1 0; min-width: 0; height: 64px; border-radius: 18px;
+    display: flex; align-items: center; gap: 8px; padding: 0 10px 0 9px; text-align: left;
+    background: var(--surface); color: var(--muted); border: 1px solid var(--line);
 }
+.tab-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tab-name { font-family: var(--font-main); font-size: 16px; font-weight: 900; line-height: 1.1; }
+.tab-time { font-size: 12px; font-weight: 700; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-x { display: none; position: absolute; top: 7px; right: 8px; opacity: 0.65; font-size: 12px; }
+.meal-tab.active .tab-x { display: block; }
+.meal-tab.almoco.active { background: var(--grad-almoco); color: #000; border-color: transparent; }
+.meal-tab.jantar.active { background: var(--grad-jantar); color: #fff; border-color: transparent; }
 
-.pill-info {
-    flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+.card { background: var(--surface); border-radius: 20px; border: 1px solid rgba(255,255,255,0.04); }
+.principal { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.cat-label {
+    font-family: var(--font-main); font-size: 12px; font-weight: 800;
+    letter-spacing: 1.5px; text-transform: uppercase; color: var(--acento);
 }
+.prato { font-size: 20px; font-weight: 800; line-height: 1.3; color: #fff; }
+.veg {
+    display: flex; align-items: flex-start; gap: 8px; padding-top: 10px;
+    border-top: 1px solid var(--line); color: var(--veg); font-size: 15px; font-weight: 700; line-height: 1.4;
+}
+.veg .icon { font-size: 18px; margin-top: 1px; }
+.veg span span { color: var(--muted); }
 
-.pill-name { font-size: clamp(28px, 6vw, 46px); font-weight: 900; line-height: 1; }
-.pill-time {
-    font-size: clamp(14px, 3vw, 19px); font-weight: 700; margin-top: 8px;
-    display: flex; align-items: center; gap: 8px;
-}
-.icon-clock { width: clamp(14px, 3vw, 19px); height: clamp(14px, 3vw, 19px); }
+.extras { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.extra { padding: 12px 14px; border-radius: 16px; }
+.extra .cat-label { font-size: 11px; letter-spacing: 1.2px; margin-bottom: 4px; font-family: var(--font-ui); }
+.extra-text { font-size: 14px; font-weight: 600; color: var(--text2); line-height: 1.35; }
 
-.almoco-info { color: #000000; }
-.jantar-info { color: #ffffff; }
+.next-week {
+    padding: 12px 14px; border-radius: 16px; text-align: left;
+    border: 1px dashed var(--acento); background: rgba(255,255,255,0.03); color: var(--acento);
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+}
+.next-week:hover:not(:disabled) { background: rgba(255,255,255,0.07); }
+.next-week.full { grid-column: 1 / -1; }
+.next-week .nw-label { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; opacity: 0.85; }
+.next-week .nw-main { display: flex; align-items: center; gap: 4px; font-family: var(--font-main); font-size: 15px; font-weight: 900; }
+.next-week:disabled { cursor: default; border-color: var(--line); color: var(--muted); }
 
-.home-footer {
-    font-family: var(--font-ui);
-    font-size: clamp(14px, 3.5vw, 18px);
-    color: #ffffff;
-    font-weight: 600;
-    margin-top: 30px; 
-    margin-bottom: 5px;
-    opacity: 0.8;
-}
+.empty { padding: 48px 24px; text-align: center; color: var(--muted); font-size: 16px; font-style: italic; }
 
-.credits-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    margin-top: auto;
-    margin-bottom: 0;
-    font-family: var(--font-ui);
-    font-size: clamp(12px, 3vw, 14px);
-    color: var(--muted);
-}
-.credits-title {
-    font-weight: 600;
-}
-.credits-links {
-    display: flex;
-    gap: 15px;
-}
-.credit-link {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--muted);
-    text-decoration: none;
-    transition: color 0.2s ease, transform 0.2s ease;
-}
-.credit-link:hover {
-    color: #ffffff;
-    transform: translateY(-1px);
-}
-.credit-link svg {
-    width: 16px;
-    height: 16px;
-    fill: currentColor;
-}
-
-/* ══════════════════════════════════════
-   TELA DETALHE (Almoço / Jantar)
-   ══════════════════════════════════════ */
-.screen-detail { background: var(--bg); }
-
-.detail-header {
-    flex-shrink: 0; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    z-index: 10;
-}
-
-.header-top-container { width: 100%; max-width: 800px; margin: 0 auto; }
-
-.header-top { display: flex; align-items: center; gap: 20px; padding: 24px 24px 16px; }
-
+/* ── Semana ── */
+.semana-head { display: flex; align-items: center; gap: 14px; }
 .back-btn {
-    width: 46px; height: 46px; border-radius: 14px;
-    border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+    width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.08);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; flex-shrink: 0; transition: background 0.15s;
 }
-.back-btn:active { transform: scale(0.92); }
-.back-btn svg { width: 22px; height: 22px; }
-
-.header-meal-info { display: flex; align-items: center; gap: 16px; }
-.header-svg-icon { width: 42px; height: 42px; object-fit: contain; }
-
-.header-meal-name { font-family: var(--font-main); font-size: 1.6rem; font-weight: 900; line-height: 1.1; }
-.header-meal-sub { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-top: 2px; }
-
-.almoco-header .header-meal-name { color: var(--orange-light); }
-.jantar-header  .header-meal-name { color: var(--blue-light); }
-
-.day-scroller {
-    display: flex; justify-content: space-between; gap: 6px; padding: 10px 24px 20px;
+.back-btn svg { width: 20px; height: 20px; }
+.semana-title { font-family: var(--font-main); font-size: 22px; font-weight: 800; line-height: 1.15; }
+.semana-sub { font-size: 13px; font-weight: 700; color: var(--muted); }
+.semana-list { display: flex; flex-direction: column; gap: 10px; }
+.semana-dia {
+    width: 100%; text-align: left; padding: 12px 14px; border-radius: 16px;
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.04);
 }
-
-.day-chip {
-    flex: 1; min-width: 0;
-    background: var(--surface2); border: 2px solid transparent;
-    border-radius: 12px; color: var(--muted); font-family: var(--font-ui);
-    padding: 10px 2px; cursor: pointer; display: flex; flex-direction: column;
-    align-items: center; gap: 2px; transition: all 0.2s ease;
-}
-.day-chip .chip-day  { font-size: clamp(0.6rem, 2.5vw, 0.75rem); letter-spacing: 0px; font-weight: 800; }
-.day-chip .chip-date { font-size: clamp(0.7rem, 3vw, 0.95rem); font-weight: 900; }
-
-.almoco-header .day-chip.active {
-    background: linear-gradient(135deg, var(--orange), var(--orange-light));
-    color: #000; box-shadow: 0 4px 12px rgba(249, 121, 2, 0.3);
-}
-.jantar-header .day-chip.active {
-    background: linear-gradient(135deg, var(--blue), var(--blue-light));
-    color: #fff; box-shadow: 0 4px 12px rgba(36, 100, 210, 0.3);
-}
-
-/* Corpo e Cards das Categorias */
-.detail-body-container { flex: 1; overflow-y: auto; }
-
-/* Aumentado o padding-top para compensar a remoção do day-label */
-.detail-body { width: 100%; max-width: 800px; margin: 0 auto; padding: 24px 0 60px; }
-
-.cat-block {
-    background: var(--surface);
-    border-radius: 20px;
-    padding: 20px 24px;
-    margin: 0 20px 20px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    border: 1px solid rgba(255,255,255,0.03);
-}
-
-.cat-title {
-    font-family: var(--font-main);
-    font-size: 0.85rem; font-weight: 800; letter-spacing: 1.5px;
-    text-transform: uppercase; margin-bottom: 14px;
-    display: flex; align-items: center;
-}
-.almoco-body .cat-title { color: var(--orange-light); }
-.jantar-body .cat-title  { color: var(--blue-light); }
-
-.food-item {
-    display: block; font-size: 1.1rem; font-weight: 600; color: #E2E2EA;
-    line-height: 1.5; padding: 10px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.food-item:last-child { border-bottom: none; padding-bottom: 0; }
-.food-item:first-of-type { padding-top: 0; }
-
-.empty { text-align: center; padding: 60px 30px; color: var(--muted); font-size: 1.1rem; font-style: italic; }
-
-/* ══════════════════════════════════════
-   DESKTOP RESPONSIVE (> 900px)
-   ══════════════════════════════════════ */
-@media (min-width: 900px) {
-    .home-wrap-scroll { justify-content: center; padding: 40px; }
-    .home-header { height: 160px; }
-    .home-pills { flex-direction: row; justify-content: center; max-width: 1000px; gap: 40px; }
-    .pill { max-width: 480px; aspect-ratio: 2.5 / 1; }
-    .home-footer { margin-top: 50px; font-size: 18px; }
-    
-    .cat-block { margin: 0 30px 24px; padding: 24px 30px; }
-}
+.semana-dia:hover { background: var(--surface2); }
+.semana-dia.hoje { border-color: rgba(240,240,245,0.55); }
+.semana-dia-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.semana-dia-nome { font-family: var(--font-main); font-size: 15px; font-weight: 800; }
+.tag-hoje { padding: 2px 10px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 11px; font-weight: 900; letter-spacing: 0.8px; }
+.semana-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.semana-col-label { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; margin-bottom: 2px; }
+.semana-col-label.almoco { color: var(--orange-light); }
+.semana-col-label.jantar { color: var(--blue-light); }
+.semana-col-text { font-size: 13px; font-weight: 600; color: var(--text2); line-height: 1.35; }
 """
 
-def _js(json_data: str) -> str:
-    return f"""
-const DATA = {json_data};
+_JS = r"""
+const SEMANAS = __DADOS__;
+const META = __META__;
 
-// MUDANÇA AQUI: "Proteína" no lugar de "Principal"
-const ORDEM = [
-    "Proteína","Vegetariano","Sopas","Guarnição",
-    "Acompanhamentos","Saladas","Suco","Sobremesa"
-];
-const ABREV = ["SEG","TER","QUA","QUI","SEX"];
+const CHAVES = Object.keys(SEMANAS).sort();
+const SIGLAS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX'];
+const NOMES_DIA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+               'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
-const state = {{ almoco: 0, jantar: 0 }};
+/* ── Datas (fuso do aparelho, sem hora) ── */
+function hojeLocal() {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function deISO(s) {
+    const [a, m, d] = s.split('-').map(Number);
+    return new Date(a, m - 1, d);
+}
+function paraISO(d) {
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function somarDias(d, n) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+function segundaDe(d) {
+    return somarDias(d, -((d.getDay() + 6) % 7));
+}
+function dataDoDia(chave, i) {
+    return somarDias(deISO(chave), i);
+}
+function faixa(chave) {
+    const s = SEMANAS[chave];
+    return `${s[0].data} a ${s[4].data}`;
+}
+function faixaCurta(chave) {
+    const ini = dataDoDia(chave, 0), fim = dataDoDia(chave, 4);
+    const mes = MESES[fim.getMonth()].slice(0, 3);
+    return ini.getMonth() === fim.getMonth()
+        ? `${ini.getDate()}–${fim.getDate()}/${mes}`
+        : `${ini.getDate()}/${MESES[ini.getMonth()].slice(0, 3)}–${fim.getDate()}/${mes}`;
+}
 
-/* ── Hash Routing para navegação nativa do dispositivo ── */
-function handleHashChange() {{
-    let hash = window.location.hash.replace('#', '') || 'home';
-    if (!['home', 'almoco', 'jantar'].includes(hash)) hash = 'home';
-    
-    const prevs = document.querySelectorAll('.screen.active');
-    const next = document.getElementById('screen-' + hash);
-    
-    prevs.forEach(prev => {{
-        if (prev.id !== 'screen-' + hash) {{
-            if (hash === 'home') {{
-                prev.classList.remove('active'); 
-            }} else {{
-                prev.classList.add('exit-left'); 
-            }}
-        }}
-    }});
-    
-    next.classList.add('active');
-    next.classList.remove('exit-left');
-    
-    if (hash === 'almoco') renderDetail('almoco', state.almoco);
-    if (hash === 'jantar') renderDetail('jantar', state.jantar);
-}}
+/* ── Qual semana mostrar ──
+   De segunda a sexta: a semana corrente. A partir de sábado: a próxima.
+   Se a semana-alvo ainda não foi publicada, mostra a mais recente anterior. */
+const HOJE = hojeLocal();
+const ALVO = paraISO(segundaDe(somarDias(HOJE, 2)));
+const ATUAL = CHAVES.filter(k => k <= ALVO).pop() || CHAVES[0];
+const PROXIMA = CHAVES.find(k => k > ATUAL) || null;
 
-window.addEventListener('hashchange', handleHashChange);
+function diaPadrao(chave) {
+    const offset = Math.round((HOJE - deISO(chave)) / 86400000);
+    return (offset >= 0 && offset <= 4) ? offset : 0;
+}
+function ehHoje(chave, i) {
+    return paraISO(dataDoDia(chave, i)) === paraISO(HOJE);
+}
 
-function goTo(id) {{
-    window.location.hash = id;
-}}
+const state = { semana: ATUAL, dia: diaPadrao(ATUAL), refeicao: null, view: 'hoje' };
+let navegouNoSite = false;
+let refeicaoAntesDaSemana = null;
 
-function goBack() {{
-    window.history.back();
-    setTimeout(() => {{
-        if (window.location.hash !== '#home' && window.location.hash !== '') {{
-            window.location.hash = 'home';
-        }}
-    }}, 100);
-}}
+function esc(texto) {
+    return String(texto).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+const $ = id => document.getElementById(id);
 
-function buildDayChips(tipo) {{
-    const container = document.getElementById('days-' + tipo);
-    container.innerHTML = '';
+/* ── Roteamento (o "voltar" do celular desmarca a refeição / sai da semana) ── */
+function lerHash() {
+    const h = location.hash.replace('#', '');
+    if (h === 'almoco' || h === 'jantar') return { view: 'hoje', refeicao: h };
+    if (h === 'semana') return { view: 'semana', refeicao: null };
+    return { view: 'hoje', refeicao: null };   // '', 'inicio' e o antigo 'home'
+}
+function aplicarHash() {
+    const anterior = state.refeicao;
+    Object.assign(state, lerHash());
+    if (state.view === 'semana') {
+        refeicaoAntesDaSemana = anterior;
+    } else if (!state.refeicao) {
+        // A tela inicial não mostra dias: volta para hoje
+        state.semana = ATUAL;
+        state.dia = diaPadrao(ATUAL);
+    }
+    render();
+    window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', aplicarHash);
 
-    ABREV.forEach((abrev, i) => {{
-        const chip = document.createElement('button');
-        chip.className = 'day-chip' + (i === state[tipo] ? ' active' : '');
-        chip.innerHTML = `<span class="chip-day">${{abrev}}</span><span class="chip-date">${{DATA[i].data}}</span>`;
-        chip.onclick = () => selectDay(tipo, i);
-        container.appendChild(chip);
-    }});
-}}
+function irPara(hash) {
+    navegouNoSite = true;
+    location.hash = hash;
+}
+function trocarSemEmpilhar(hash) {
+    history.replaceState(null, '', '#' + hash);
+    aplicarHash();
+}
+function voltar() {
+    // Se chegamos aqui navegando no site, volta no histórico; se veio por link direto, não sai do site
+    if (navegouNoSite) history.back();
+    else trocarSemEmpilhar('inicio');
+}
 
-function selectDay(tipo, idx) {{
-    state[tipo] = idx;
-    document.querySelectorAll('#days-' + tipo + ' .day-chip').forEach((c, i) => {{
-        if(i === idx) c.classList.add('active');
-        else c.classList.remove('active');
-    }});
-    renderBody(tipo, idx);
-}}
+function selecionarRefeicao(tipo) {
+    if (state.refeicao === tipo) voltar();                 // tocar na marcada: desmarca
+    else if (state.refeicao) trocarSemEmpilhar(tipo);      // trocar almoço ⇄ jantar
+    else irPara(tipo);                                      // da tela inicial: abre
+}
+function selecionarDia(i) {
+    state.dia = i;
+    render();
+}
+function selecionarSemana(chave) {
+    if (state.semana === chave) return;
+    state.semana = chave;
+    state.dia = diaPadrao(chave);
+    render();
+    window.scrollTo(0, 0);
+}
+function abrirDiaDaSemana(i) {
+    state.dia = i;
+    // Veio de uma refeição: volta para ela já no dia escolhido; senão abre o almoço
+    if (refeicaoAntesDaSemana && navegouNoSite) history.back();
+    else trocarSemEmpilhar(refeicaoAntesDaSemana || 'almoco');
+}
 
-function renderBody(tipo, idx) {{
-    const dia   = DATA[idx];
-    const dados = dia[tipo];
-    const body  = document.getElementById('body-' + tipo);
-    const bodyClass = tipo + '-body';
+/* ── Renderização ── */
+function renderWeekToggle(id) {
+    const el = $(id);
+    el.hidden = !PROXIMA;
+    if (!PROXIMA) return;
+    el.innerHTML = '';
+    [[ATUAL, 'Esta semana'], [PROXIMA, 'Próxima semana']].forEach(([chave, rotulo]) => {
+        const b = document.createElement('button');
+        const ativo = chave === state.semana;
+        b.className = 'week-btn' + (ativo ? ' active' : '');
+        b.setAttribute('aria-pressed', ativo);
+        b.innerHTML = `${rotulo}<small>${esc(faixa(chave))}</small>`;
+        b.onclick = () => selecionarSemana(chave);
+        el.appendChild(b);
+    });
+}
 
-    // MUDANÇA AQUI: Título com nome do dia removido (let html inicia vazio)
+function renderDias() {
+    const el = $('days');
+    el.innerHTML = '';
+    SIGLAS.forEach((sigla, i) => {
+        const b = document.createElement('button');
+        const ativo = i === state.dia;
+        b.className = 'day-btn' + (ativo ? ' active' : '') + (ehHoje(state.semana, i) ? ' hoje' : '');
+        b.setAttribute('aria-pressed', ativo);
+        b.setAttribute('aria-label', `${NOMES_DIA[i]}, ${dataDoDia(state.semana, i).getDate()}`);
+        b.innerHTML = `<span class="sigla">${sigla}</span><span class="num">${dataDoDia(state.semana, i).getDate()}</span>`;
+        b.onclick = () => selecionarDia(i);
+        el.appendChild(b);
+    });
+}
+
+function renderCabecalho() {
+    $('home-week').textContent = `Semana de ${faixa(state.semana)}`;
+    $('home-next').hidden = !PROXIMA;
+    $('week-pill').textContent = `Semana ${faixaCurta(state.semana)}`;
+}
+
+function renderMenu() {
+    const dados = SEMANAS[state.semana][state.dia][state.refeicao] || {};
+    const principal = dados[META.principal] || [];
+    const veg = dados[META.vegetariano] || [];
+    const extras = META.extras.filter(([cat]) => dados[cat]?.length);
+
     let html = '';
+    if (!principal.length && !veg.length && !extras.length) {
+        html += '<div class="card empty">Nenhum cardápio disponível para este dia.</div>';
+    }
+    if (principal.length || veg.length) {
+        html += '<div class="card principal"><div class="cat-label">Prato principal</div>';
+        html += principal.map(p => `<div class="prato">${esc(p)}</div>`).join('');
+        if (veg.length) {
+            html += `<div class="veg"><svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>`
+                  + `<span><span>Vegetariano:</span> ${veg.map(esc).join(' ou ')}</span></div>`;
+        }
+        html += '</div>';
+    }
+    html += '<div class="extras">' + extras.map(([cat, rotulo]) =>
+        `<div class="card extra"><div class="cat-label">${esc(rotulo)}</div>`
+        + `<div class="extra-text">${dados[cat].map(esc).join(', ')}</div></div>`
+    ).join('') + botaoSemana(extras.length % 2 === 0) + '</div>';
+    $('menu').innerHTML = html;
+}
 
-    let temConteudo = false;
-    ORDEM.forEach(cat => {{
-        if (dados[cat]?.length) {{
-            temConteudo = true;
-            html += `<div class="cat-block">
-                <div class="cat-title">${{cat}}</div>
-                ${{dados[cat].map(i => `<span class="food-item">${{i}}</span>`).join('')}}
-            </div>`;
-        }}
-    }});
+/* Ocupa o espaço vazio ao lado da Sobremesa (ou a linha inteira, se não sobrar espaço) */
+function botaoSemana(linhaInteira) {
+    const cls = 'next-week' + (linhaInteira ? ' full' : '');
+    const seta = '<svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+    if (PROXIMA && state.semana === ATUAL) {
+        return `<button class="${cls}" onclick="selecionarSemana('${PROXIMA}')">`
+            + `<span class="nw-label">Próxima semana</span><span class="nw-main">${esc(faixaCurta(PROXIMA))} ${seta}</span></button>`;
+    }
+    if (state.semana !== ATUAL) {
+        return `<button class="${cls}" onclick="selecionarSemana('${ATUAL}')">`
+            + `<span class="nw-label">Voltar para</span><span class="nw-main">Esta semana ${seta}</span></button>`;
+    }
+    return `<button class="${cls}" disabled>`
+        + `<span class="nw-label">Próxima semana</span><span class="nw-main">Ainda não publicada</span></button>`;
+}
 
-    if (!temConteudo) {{
-        html += '<div class="empty">Nenhum cardápio disponível para este dia.</div>';
-    }}
+function renderSemana() {
+    $('semana-title').textContent = `Semana de ${faixaCurta(state.semana)}`;
+    const proteinas = (i, tipo) => (SEMANAS[state.semana][i][tipo]?.[META.principal] || [])
+        .map(p => p.replace(/\*$/, '')).join(' · ') || '—';
+    $('semana-list').innerHTML = SIGLAS.map((_, i) => {
+        const hoje = ehHoje(state.semana, i);
+        return `<button class="semana-dia${hoje ? ' hoje' : ''}" onclick="abrirDiaDaSemana(${i})">
+            <div class="semana-dia-top">
+                <span class="semana-dia-nome">${NOMES_DIA[i]}, ${esc(SEMANAS[state.semana][i].data)}</span>
+                ${hoje ? '<span class="tag-hoje">HOJE</span>' : ''}
+            </div>
+            <div class="semana-cols">
+                <div><div class="semana-col-label almoco">ALMOÇO</div><div class="semana-col-text">${esc(proteinas(i, 'almoco'))}</div></div>
+                <div><div class="semana-col-label jantar">JANTAR</div><div class="semana-col-text">${esc(proteinas(i, 'jantar'))}</div></div>
+            </div>
+        </button>`;
+    }).join('');
+}
 
-    body.className = 'detail-body ' + bodyClass;
-    body.innerHTML = html;
-    
-    document.querySelector('.detail-body-container').scrollTo({{ top: 0, behavior: 'smooth' }});
-}}
+function render() {
+    const naSemana = state.view === 'semana';
+    $('view-hoje').hidden = naSemana;
+    $('view-semana').hidden = !naSemana;
+    document.body.classList.toggle('jantar', state.refeicao === 'jantar');
 
-function renderDetail(tipo, idx) {{
-    buildDayChips(tipo);
-    renderBody(tipo, idx);
-}}
+    renderCabecalho();
+    const naInicial = !naSemana && !state.refeicao;
+    $('home-header').hidden = !naInicial;
+    $('topbar').hidden = naInicial;
+    if (naSemana) {
+        renderWeekToggle('week-toggle-semana');
+        renderSemana();
+        return;
+    }
 
-(function init() {{
-    const d = new Date().getDay();
-    const hoje = (d === 0 || d === 6) ? 0 : d - 1;
-    state.almoco = hoje;
-    state.jantar  = hoje;
+    renderDias();
+    $('inicio').hidden = !!state.refeicao;
+    $('refeicao').hidden = !state.refeicao;
+    ['almoco', 'jantar'].forEach(t => {
+        const ativo = state.refeicao === t;
+        const tab = $('tab-' + t);
+        tab.classList.toggle('active', ativo);
+        tab.setAttribute('aria-pressed', ativo);
+        tab.setAttribute('aria-label', ativo ? `${t === 'almoco' ? 'Almoço' : 'Jantar'} (toque para voltar ao início)` : (t === 'almoco' ? 'Almoço' : 'Jantar'));
+    });
+    if (state.refeicao) renderMenu();
+}
 
-    if (!window.location.hash) {{
-        history.replaceState(null, null, '#home');
-    }}
-    handleHashChange();
-}}());
+(function init() {
+    // Só avisa quando falta o cardápio DESTA semana (em dia útil). No fim de semana,
+    // a próxima ainda não ter saído é normal e não merece aviso.
+    const fimDeSemana = HOJE.getDay() === 0 || HOJE.getDay() === 6;
+    if (ATUAL < ALVO && !fimDeSemana) {
+        $('stale').textContent = 'O cardápio desta semana ainda não foi publicado. Mostrando o da semana anterior.';
+        $('stale').hidden = false;
+    }
+    if (location.hash === '#home') history.replaceState(null, '', '#inicio');
+    aplicarHash();
+}());
 """

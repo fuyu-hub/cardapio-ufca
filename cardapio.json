@@ -1,0 +1,319 @@
+{
+ "2026-11-09": {
+  "0": {
+   "almoco": {
+    "Acompanhamentos": [
+     "Baião",
+     "Arroz Integral",
+     "Feijão Preto"
+    ],
+    "Guarnição": [
+     "Cuscuz"
+    ],
+    "Proteína": [
+     "Cozido Nordestino",
+     "Frango Assado"
+    ],
+    "Saladas": [
+     "Alface, Cenoura, Tomate, Manga",
+     "Maionese de Beterraba"
+    ],
+    "Sobremesa": [
+     "Maçã",
+     "Doce"
+    ],
+    "Suco": [
+     "Acerola"
+    ],
+    "Vegetariano": [
+     "Falafel com Molho Tarrine"
+    ]
+   },
+   "data": "9/nov",
+   "dia_nome": "Segunda-feira",
+   "jantar": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão Carioca"
+    ],
+    "Guarnição": [
+     "Farofa"
+    ],
+    "Proteína": [
+     "Churrasco Misto",
+     "Frango ao Molho Branco"
+    ],
+    "Saladas": [
+     "Chuchu, Cenoura e Vargem",
+     "Alface, Tomate, Replho Roxo e Manga"
+    ],
+    "Sobremesa": [
+     "Melancia",
+     "Doce"
+    ],
+    "Sopas": [
+     "Canja de Galinha"
+    ],
+    "Suco": [
+     "Manga"
+    ],
+    "Vegetariano": [
+     "Brócolis Refogado"
+    ]
+   }
+  },
+  "1": {
+   "almoco": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão de Carioca"
+    ],
+    "Guarnição": [
+     "Macarrão Espaguete"
+    ],
+    "Proteína": [
+     "Suíno ao Molho Barbecue",
+     "Frango Acebolado"
+    ],
+    "Saladas": [
+     "Alface, Cenoura, Repolho, Abacaxi",
+     "Purê de Batata"
+    ],
+    "Sobremesa": [
+     "Melão",
+     "Doce"
+    ],
+    "Suco": [
+     "Abacaxi"
+    ],
+    "Vegetariano": [
+     "Omelete de Forno"
+    ]
+   },
+   "data": "10/nov",
+   "dia_nome": "Terça-feira",
+   "jantar": {
+    "Acompanhamentos": [
+     "Arroz à Grega",
+     "Arroz Integral",
+     "Feijão de Corda"
+    ],
+    "Guarnição": [
+     "Macarrão Parafuso"
+    ],
+    "Proteína": [
+     "Escondidinho de Carne de Sol*",
+     "Frango Xadrez*"
+    ],
+    "Saladas": [
+     "Batata Doce",
+     "Repolho, Alface, Beterraba, Tomate e Manga"
+    ],
+    "Sobremesa": [
+     "Mamão",
+     "Doce"
+    ],
+    "Sopas": [
+     "Sopa de Feijão"
+    ],
+    "Suco": [
+     "Goiaba"
+    ],
+    "Vegetariano": [
+     "Escondidinho de Soja com Legumes"
+    ]
+   }
+  },
+  "2": {
+   "almoco": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão Carioca"
+    ],
+    "Guarnição": [
+     "Farofa"
+    ],
+    "Proteína": [
+     "Feijoada a Brasileira",
+     "Frango ao Molho de Mostarda"
+    ],
+    "Saladas": [
+     "Vinagrete",
+     "Abobora com Cebolinha"
+    ],
+    "Sobremesa": [
+     "Laranja",
+     "Doce"
+    ],
+    "Suco": [
+     "Cajá"
+    ],
+    "Vegetariano": [
+     "Mix de Brócolis e Couve-flor com Palmito"
+    ]
+   },
+   "data": "11/nov",
+   "dia_nome": "Quarta-feira",
+   "jantar": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão de Corda"
+    ],
+    "Guarnição": [
+     "Cuscuz"
+    ],
+    "Proteína": [
+     "Frango a Pizzaiolo*",
+     "Suino ao Confit de Ervas"
+    ],
+    "Saladas": [
+     "Cenoura ao Molho Branco*",
+     "Repolho Roxo, Repolho Branco, Alface, Beterraba e Abacaxi"
+    ],
+    "Sobremesa": [
+     "Maçã",
+     "Doce"
+    ],
+    "Sopas": [
+     "Sopa de Frango"
+    ],
+    "Suco": [
+     "Caju"
+    ],
+    "Vegetariano": [
+     "Ovo a Parmegiana"
+    ]
+   }
+  },
+  "3": {
+   "almoco": {
+    "Acompanhamentos": [
+     "Arroz com Ervilha",
+     "Arroz Integral",
+     "Feijão Carioca"
+    ],
+    "Guarnição": [
+     "Macarrão Espaguete"
+    ],
+    "Proteína": [
+     "Panqueca de Frango*",
+     "Isca Bovina ao Shoyu*"
+    ],
+    "Saladas": [
+     "Alface, Tomate, Cenoura, Beterraba e Manga",
+     "Cenoura Salteada"
+    ],
+    "Sobremesa": [
+     "Abacaxi",
+     "Doce"
+    ],
+    "Suco": [
+     "Manga"
+    ],
+    "Vegetariano": [
+     "Panqueca de Soja*"
+    ]
+   },
+   "data": "12/nov",
+   "dia_nome": "Quinta-feira",
+   "jantar": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão Preto"
+    ],
+    "Guarnição": [
+     "Farofa"
+    ],
+    "Proteína": [
+     "Cubos Bovino Acebolado",
+     "Frango Assado com Batata"
+    ],
+    "Saladas": [
+     "Macaxeira Cremosa",
+     "Alface, Tomate, Beterraba, Repolho e Milho"
+    ],
+    "Sobremesa": [
+     "Banana",
+     "Doce"
+    ],
+    "Sopas": [
+     "Sopa de Carne com Legumes"
+    ],
+    "Suco": [
+     "Acerola"
+    ],
+    "Vegetariano": [
+     "Jardineira de Lentilha"
+    ]
+   }
+  },
+  "4": {
+   "almoco": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão Carioca"
+    ],
+    "Guarnição": [
+     "Farofa"
+    ],
+    "Proteína": [
+     "Peixe a Delicia*",
+     "Frango ao Molho Rosé"
+    ],
+    "Saladas": [
+     "Alface, Tomate, Cenoura e Pepino",
+     "Batata Doce com Salsinha"
+    ],
+    "Sobremesa": [
+     "Melancia",
+     "Doce"
+    ],
+    "Suco": [
+     "Acerola"
+    ],
+    "Vegetariano": [
+     "Hamburguer de Soja"
+    ]
+   },
+   "data": "13/nov",
+   "dia_nome": "Sexta-feira",
+   "jantar": {
+    "Acompanhamentos": [
+     "Arroz Branco",
+     "Arroz Integral",
+     "Feijão de Corda"
+    ],
+    "Guarnição": [
+     "Farofa"
+    ],
+    "Proteína": [
+     "Peixe Frito*",
+     "Frango ao Molho Ferrugem"
+    ],
+    "Saladas": [
+     "Beteraba Sauté",
+     "Alface, Tomate, Beterraba, Repolho e Milho"
+    ],
+    "Sobremesa": [
+     "Melão",
+     "Doce"
+    ],
+    "Sopas": [
+     "Mungunzá"
+    ],
+    "Suco": [
+     "Cajá"
+    ],
+    "Vegetariano": [
+     "Grão de Bico Refogado com Legumes"
+    ]
+   }
+  }
+ }
+}

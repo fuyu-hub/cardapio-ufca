@@ -1,0 +1,21 @@
+name = "cardapio-ufca-vigia"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# A cada 10 minutos, 24 h por dia (≈144 execuções/dia; o plano gratuito permite 100 mil)
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Guarda o ID do último PDF visto. Crie com:
+#   npx wrangler kv namespace create ESTADO
+# e cole o "id" retornado abaixo.
+[[kv_namespaces]]
+binding = "ESTADO"
+id = "b508a56f57914a7e88d92903a0bd1c70"
+
+[vars]
+GITHUB_REPO = "fuyu-hub/cardapio-ufca"
+GITHUB_BRANCH = "main"
+
+# O token NÃO fica aqui. Configure como segredo:
+#   npx wrangler secret put GITHUB_TOKEN

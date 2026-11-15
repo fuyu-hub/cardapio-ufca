@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PDFs e imagens usados em testes locais
+*.pdf
+/*.png
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+
+# Cache local do wrangler (Cloudflare)
+.wrangler/

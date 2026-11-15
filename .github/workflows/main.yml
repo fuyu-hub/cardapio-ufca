@@ -1,37 +1,37 @@
 name: Atualizar Cardápio Automaticamente
 
 on:
-  schedule:
-    # DOMINGO (15h, 18h, 21h, 00h UTC -> 12h, 15h, 18h, 21h Brasília)
-    - cron: '0 15,18,21 * * 0'
-    - cron: '0 0 * * 1'
-
-    # SEGUNDA-FEIRA (Mais horários: 10h às 22h UTC a cada 2h -> 07h às 19h Brasília)
-    - cron: '0 10,12,14,16,18,20,22 * * 1'
-
-    # TERÇA-FEIRA (Alguns poucos horários: 10h, 15h, 20h UTC -> 07h, 12h, 17h Brasília)
-    - cron: '0 10,15,20 * * 2'
-
-    # SÁBADO (15h, 18h, 21h UTC -> 12h, 15h, 18h Brasília)
-    - cron: '0 15,18,21 * * 6'
-    
+  # Disparo principal: o Worker do Cloudflare (pasta worker/) chama este workflow
+  # assim que aparece um PDF novo no site da UFCA.
   workflow_dispatch:
+
+  # Reserva, caso o Worker falhe. O cron do GitHub atrasa e às vezes pula execuções,
+  # por isso não é o mecanismo principal. (UTC → Brasília: -3 h)
+  schedule:
+    - cron: '17 11,21 * * *'   # todo dia, ~08h e ~18h de Brasília
 
 permissions:
   contents: write
 
+# Nunca roda duas atualizações ao mesmo tempo (evita conflito no push)
+concurrency:
+  group: atualizar-cardapio
+  cancel-in-progress: false
+
 jobs:
   atualizar:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout do repositório
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configurar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Instalar dependências
         run: pip install -r requirements.txt
@@ -43,12 +43,13 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          
+          git add index.html cardapio.json
+
           if ! git diff --staged --quiet; then
             echo "Alterações detectadas. Fazendo commit e push..."
             git commit -m "Atualiza cardápio da semana"
+            git pull --rebase
             git push
           else
-            echo "Nenhuma alteração detectada. O PDF é o mesmo ou o conteúdo não mudou."
+            echo "Nenhuma alteração detectada. O cardápio já estava em dia."
           fi
