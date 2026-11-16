@@ -1,21 +1,34 @@
 name = "cardapio-ufca-vigia"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
+workers_dev = true
+preview_urls = false
 
-# A cada 10 minutos, 24 h por dia (≈144 execuções/dia; o plano gratuito permite 100 mil)
+# Vigia a cada 10 min (≈144 execuções/dia) + lembretes às 10:30 e 16:30 de Brasília, seg–sex.
+# Os horários do cron são em UTC (Brasília = UTC−3).
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 * * * *", "30 13 * * 1-5", "30 19 * * 1-5"]
 
-# Guarda o ID do último PDF visto. Crie com:
+# Guarda o ID do último PDF visto e as inscrições de notificação. Crie com:
 #   npx wrangler kv namespace create ESTADO
 # e cole o "id" retornado abaixo.
 [[kv_namespaces]]
 binding = "ESTADO"
 id = "b508a56f57914a7e88d92903a0bd1c70"
 
+# O próprio Worker, para dividir o envio de notificações em lotes
+[[services]]
+binding = "SELF"
+service = "cardapio-ufca-vigia"
+
 [vars]
 GITHUB_REPO = "fuyu-hub/cardapio-ufca"
 GITHUB_BRANCH = "main"
+SITE_URL = "https://cardapioufca.pages.dev"
+# Chave pública VAPID (pode ser pública; a privada é segredo)
+VAPID_PUBLIC = "BOvQweM_g1N-lWZGZuqK2dWcGDikya1I0lJyZrDc4_oXDm5TNq41bFA83otlT21dLpodhbZUsOUvM4IbkddJ-B4"
 
-# O token NÃO fica aqui. Configure como segredo:
-#   npx wrangler secret put GITHUB_TOKEN
+# Segredos (NÃO ficam aqui). Configure com:
+#   npx wrangler secret put GITHUB_TOKEN    token do GitHub (Actions: read/write)
+#   npx wrangler secret put VAPID_PRIVATE   chave privada VAPID (campo "d" do JWK)
+#   npx wrangler secret put LOTE_TOKEN      texto aleatório para as chamadas internas

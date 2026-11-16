@@ -14,6 +14,10 @@ Os dados vão embutidos no HTML; o próprio navegador decide qual semana mostrar
 
 import json
 
+# Notificações (Web Push): o Worker "cardapio-ufca-vigia" guarda as inscrições e envia os lembretes.
+API_LEMBRETES = "https://cardapio-ufca-vigia.fsix95.workers.dev"
+VAPID_PUBLICA = "BOvQweM_g1N-lWZGZuqK2dWcGDikya1I0lJyZrDc4_oXDm5TNq41bFA83otlT21dLpodhbZUsOUvM4IbkddJ-B4"
+
 # Categorias como vêm do scraper → como aparecem na tela.
 # "principal" ganha destaque; "vegetariano" vira uma linha própria; o resto vira cartões.
 CATEGORIAS = {
@@ -37,7 +41,8 @@ def gerar_html(semanas: dict, caminho: str = "index.html") -> None:
 
     html = (_HTML
             .replace("__CSS__", _CSS)
-            .replace("__JS__", _JS.replace("__DADOS__", dados).replace("__META__", meta)))
+            .replace("__JS__", _JS.replace("__DADOS__", dados).replace("__META__", meta)
+                     .replace("__API__", API_LEMBRETES).replace("__VAPID__", VAPID_PUBLICA)))
 
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(html)
@@ -74,6 +79,11 @@ _HTML = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121216">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="img/icone-192.png">
+    <link rel="apple-touch-icon" href="img/icone-apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="RU UFCA">
     <title>Cardápio RU — UFCA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,6 +113,21 @@ _HTML = """<!DOCTYPE html>
 
         <!-- Nenhuma refeição marcada: tela inicial -->
         <div class="inicio" id="inicio">
+            <section class="convite" id="convite" aria-labelledby="convite-titulo" hidden>
+                <button class="convite-x" onclick="dispensarConvite()" aria-label="Fechar aviso">
+                    <svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <img class="convite-icone" src="img/icone-192.png" alt="">
+                <div class="convite-corpo">
+                    <h2 class="convite-titulo" id="convite-titulo">Leve o cardápio no celular</h2>
+                    <p class="convite-txt" id="convite-txt"></p>
+                    <div class="convite-acoes">
+                        <button class="btn-pri" id="convite-instalar" onclick="instalarApp()" hidden>Instalar app</button>
+                        <button class="btn-sec" id="convite-lembretes" onclick="abrirLembretes()" hidden>Ativar lembretes</button>
+                    </div>
+                </div>
+            </section>
+
             <div class="meal-cards">
                 <button class="meal-card almoco" onclick="selecionarRefeicao('almoco')">
                     <span class="icon-box"><img src="img/sol.svg" alt=""></span>
@@ -121,6 +146,10 @@ _HTML = """<!DOCTYPE html>
             </div>
 
             <a class="week-link" href="#semana" onclick="irPara('semana'); return false;">Ver a semana inteira """ + _SETA_SVG + """</a>
+            <button class="bell-btn" id="bell-btn" onclick="abrirLembretes()" hidden>
+                <svg aria-hidden="true" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span id="bell-texto">Ativar lembretes</span>
+            </button>
             <p class="disclaimer">O cardápio pode sofrer alterações</p>
 
             <footer class="credits">
@@ -172,6 +201,30 @@ _HTML = """<!DOCTYPE html>
     </section>
 
 </main>
+
+<dialog class="lembretes" id="lembretes" aria-labelledby="lembretes-titulo">
+    <form method="dialog" class="lembretes-box" onsubmit="return false">
+        <h2 id="lembretes-titulo">Lembretes do cardápio</h2>
+        <p class="lembretes-txt">Receba uma notificação meia hora antes de abrir, com a proteína do dia. Só de segunda a sexta, e só quando o cardápio do dia já saiu.</p>
+
+        <p class="lembretes-aviso" id="lembretes-ios" hidden>No iPhone, primeiro toque em <b>Compartilhar</b> → <b>Adicionar à Tela de Início</b> e abra o site pelo ícone. Os lembretes funcionam a partir daí.</p>
+        <p class="lembretes-aviso" id="lembretes-sem-suporte" hidden>Este navegador não aceita notificações de sites.</p>
+
+        <fieldset class="lembretes-opcoes" id="lembretes-opcoes">
+            <label class="opcao"><input type="checkbox" id="pref-almoco" checked><span><b>Almoço</b><small>às 10:30</small></span></label>
+            <label class="opcao"><input type="checkbox" id="pref-jantar" checked><span><b>Jantar</b><small>às 16:30</small></span></label>
+            <label class="opcao"><input type="checkbox" id="pref-vegetariano"><span><b>Destacar a opção vegetariana</b><small>ela aparece primeiro na notificação</small></span></label>
+        </fieldset>
+
+        <p class="lembretes-status" id="lembretes-status" role="status"></p>
+
+        <div class="lembretes-acoes">
+            <button type="button" class="btn-sec" onclick="fecharLembretes()">Fechar</button>
+            <button type="button" class="btn-sec" id="btn-desativar" onclick="desativarLembretes()" hidden>Desativar</button>
+            <button type="button" class="btn-pri" id="btn-salvar" onclick="salvarLembretes()">Ativar</button>
+        </div>
+    </form>
+</dialog>
 <script>__JS__</script>
 </body>
 </html>"""
@@ -302,6 +355,66 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--text); outline-
 }
 .week-link:hover { background: var(--surface2); }
 .disclaimer { text-align: center; font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.convite {
+    position: relative; display: flex; gap: 14px; align-items: flex-start;
+    padding: 16px 16px 16px 14px; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(249,121,2,0.16), rgba(255,199,0,0.06));
+    border: 1px solid rgba(255,199,0,0.4);
+}
+.convite-icone { width: 52px; height: 52px; border-radius: 13px; flex-shrink: 0; }
+.convite-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-right: 22px; }
+.convite-titulo { font-family: var(--font-main); font-size: 17px; font-weight: 800; line-height: 1.25; }
+.convite-txt { font-size: 14px; font-weight: 600; color: #d6d6de; line-height: 1.45; }
+.convite-txt b { color: #fff; }
+.convite-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.convite-acoes button { padding: 10px 14px; font-size: 14px; }
+.convite-x {
+    position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px;
+}
+.convite-x:hover { background: rgba(255,255,255,0.06); color: #fff; }
+
+.bell-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; border-radius: 14px; font-weight: 800; font-size: 15px;
+    color: var(--orange-light); border: 1px dashed rgba(255,199,0,0.45);
+}
+.bell-btn .icon { font-size: 18px; }
+.bell-btn.ativo { color: var(--veg); border-color: rgba(185,228,165,0.45); border-style: solid; }
+.bell-btn:hover { background: rgba(255,255,255,0.04); }
+
+.lembretes {
+    margin: auto; padding: 0; border: none; background: transparent; color: var(--text);
+    width: min(440px, calc(100vw - 32px));
+}
+.lembretes::backdrop { background: rgba(0,0,0,0.6); }
+.lembretes-box {
+    background: var(--surface); border: 1px solid rgba(255,255,255,0.08); border-radius: 22px;
+    padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.lembretes h2 { font-family: var(--font-main); font-size: 20px; font-weight: 800; }
+.lembretes-txt { color: var(--muted); font-size: 15px; font-weight: 600; line-height: 1.45; }
+.lembretes-aviso {
+    padding: 12px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; line-height: 1.45;
+    background: rgba(75,161,255,0.12); color: #cfe3ff;
+}
+.lembretes-opcoes { border: none; display: flex; flex-direction: column; gap: 8px; }
+.lembretes-opcoes:disabled { opacity: 0.5; }
+.opcao {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 56px;
+    border-radius: 14px; background: var(--surface2); cursor: pointer;
+}
+.opcao input { width: 22px; height: 22px; accent-color: var(--orange); flex-shrink: 0; }
+.opcao b { display: block; font-size: 15px; }
+.opcao small { display: block; color: var(--muted); font-size: 13px; font-weight: 600; }
+.lembretes-status { min-height: 1.2em; font-size: 14px; font-weight: 700; color: var(--veg); }
+.lembretes-status.erro { color: #ffb4a8; }
+.lembretes-acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.btn-pri, .btn-sec { padding: 11px 18px; border-radius: 12px; font-weight: 800; font-size: 15px; }
+.btn-pri { background: var(--grad-almoco); color: #000; }
+.btn-pri:disabled { opacity: 0.6; cursor: wait; }
+.btn-sec { background: var(--surface2); color: var(--text); }
 
 .credits {
     margin-top: auto; padding-top: 12px;
@@ -648,6 +761,177 @@ function render() {
     if (state.refeicao) renderMenu();
 }
 
+/* ── Lembretes (notificações do navegador) ── */
+const API_LEMBRETES = '__API__';
+const VAPID_PUBLICA = '__VAPID__';
+const temPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const instalado = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+function lerPrefs() {
+    try { return JSON.parse(localStorage.getItem('lembretes')) || null; } catch { return null; }
+}
+function gravarPrefs(p) {
+    try { p ? localStorage.setItem('lembretes', JSON.stringify(p)) : localStorage.removeItem('lembretes'); } catch {}
+}
+function chaveVapid() {
+    const b = atob(VAPID_PUBLICA.replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(b, c => c.charCodeAt(0));
+}
+async function inscricaoAtual() {
+    if (!temPush) return null;
+    // getRegistration (e não .ready): se o service worker não registrar, não fica esperando para sempre
+    const reg = await navigator.serviceWorker.getRegistration();
+    return reg ? reg.pushManager.getSubscription() : null;
+}
+function status(texto, erro) {
+    const el = $('lembretes-status');
+    el.textContent = texto || '';
+    el.classList.toggle('erro', !!erro);
+}
+
+async function atualizarBotaoSino() {
+    atualizarConvite();
+    const btn = $('bell-btn');
+    btn.hidden = !temPush && !ehIOS;   // sem suporte nenhum: nem mostra o botão
+    const ativo = !!(lerPrefs() && await inscricaoAtual().catch(() => null));
+    btn.classList.toggle('ativo', ativo);
+    $('bell-texto').textContent = ativo ? 'Lembretes ativados' : 'Ativar lembretes';
+}
+
+async function abrirLembretes() {
+    const prefs = lerPrefs();
+    const precisaInstalar = ehIOS && !instalado;
+    $('lembretes-ios').hidden = !precisaInstalar;
+    $('lembretes-sem-suporte').hidden = temPush || precisaInstalar;
+    $('lembretes-opcoes').disabled = !temPush || precisaInstalar;
+    $('btn-salvar').hidden = !temPush || precisaInstalar;
+    if (prefs) {
+        $('pref-almoco').checked = prefs.almoco;
+        $('pref-jantar').checked = prefs.jantar;
+        $('pref-vegetariano').checked = prefs.vegetariano;
+    }
+    const ativo = !!(prefs && await inscricaoAtual().catch(() => null));
+    $('btn-salvar').textContent = ativo ? 'Salvar' : 'Ativar';
+    $('btn-desativar').hidden = !ativo;
+    status(Notification?.permission === 'denied'
+        ? 'As notificações deste site estão bloqueadas nas configurações do navegador.' : '', true);
+    $('lembretes').showModal();
+}
+function fecharLembretes() { $('lembretes').close(); }
+
+async function salvarLembretes() {
+    const prefs = { almoco: $('pref-almoco').checked, jantar: $('pref-jantar').checked, vegetariano: $('pref-vegetariano').checked };
+    if (!prefs.almoco && !prefs.jantar) return desativarLembretes();
+
+    const btn = $('btn-salvar');
+    btn.disabled = true;
+    status('Ativando…');
+    try {
+        if (await Notification.requestPermission() !== 'granted') {
+            status('Sem permissão para notificações. Libere nas configurações do navegador.', true);
+            return;
+        }
+        const reg = await navigator.serviceWorker.ready;
+        const inscricao = await reg.pushManager.getSubscription()
+            || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveVapid() });
+        const resp = await fetch(API_LEMBRETES + '/inscrever', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inscricao: inscricao.toJSON(), prefs }),
+        });
+        if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).erro || 'erro ' + resp.status);
+        gravarPrefs(prefs);
+        status('Pronto! Você deve receber uma notificação de confirmação agora.');
+        $('btn-salvar').textContent = 'Salvar';
+        $('btn-desativar').hidden = false;
+    } catch (e) {
+        status('Não deu para ativar: ' + e.message, true);
+    } finally {
+        btn.disabled = false;
+        atualizarBotaoSino();
+    }
+}
+
+async function desativarLembretes() {
+    try {
+        const inscricao = await inscricaoAtual();
+        if (inscricao) {
+            await fetch(API_LEMBRETES + '/cancelar', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ endpoint: inscricao.endpoint }),
+            }).catch(() => {});
+            await inscricao.unsubscribe();
+        }
+        gravarPrefs(null);
+        status('Lembretes desativados.');
+        $('btn-desativar').hidden = true;
+        $('btn-salvar').textContent = 'Ativar';
+    } catch (e) {
+        status('Não deu para desativar: ' + e.message, true);
+    }
+    atualizarBotaoSino();
+}
+
+/* ── Aviso inicial: instalar o app e ativar os lembretes ── */
+let pedidoInstalacao = null;   // evento do Chrome/Android para mostrar o "Instalar"
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    pedidoInstalacao = e;
+    atualizarConvite();
+});
+window.addEventListener('appinstalled', () => {
+    pedidoInstalacao = null;
+    atualizarConvite();
+});
+
+function conviteDispensado() {
+    try { return localStorage.getItem('convite-dispensado') === '1'; } catch { return false; }
+}
+function dispensarConvite() {
+    try { localStorage.setItem('convite-dispensado', '1'); } catch {}
+    $('convite').hidden = true;
+}
+
+async function instalarApp() {
+    if (!pedidoInstalacao) return;
+    pedidoInstalacao.prompt();
+    await pedidoInstalacao.userChoice.catch(() => null);
+    pedidoInstalacao = null;
+    atualizarConvite();
+}
+
+async function atualizarConvite() {
+    const el = $('convite');
+    if (conviteDispensado()) { el.hidden = true; return; }
+
+    const lembretesAtivos = !!(lerPrefs() && await inscricaoAtual().catch(() => null));
+    const iosSemInstalar = ehIOS && !instalado;
+    const podeInstalar = !!pedidoInstalacao && !instalado;
+    const podeLembrar = temPush && !lembretesAtivos && !iosSemInstalar;
+
+    let texto = '';
+    if (iosSemInstalar) {
+        texto = 'No iPhone: toque em <b>Compartilhar</b> e depois em <b>Adicionar à Tela de Início</b>. '
+              + 'Abra pelo ícone <b>RU</b> para ativar os lembretes.';
+    } else if (podeInstalar && podeLembrar) {
+        texto = 'Instale o app e receba a proteína do dia meia hora antes do almoço e do jantar.';
+    } else if (podeLembrar) {
+        texto = 'Receba a proteína do dia meia hora antes do almoço e do jantar.';
+    } else if (podeInstalar) {
+        texto = 'Instale o app para abrir o cardápio com um toque.';
+    }
+
+    $('convite-instalar').hidden = !podeInstalar;
+    $('convite-lembretes').hidden = !podeLembrar;
+    $('convite-txt').innerHTML = texto;
+    el.hidden = !texto;
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => { atualizarBotaoSino(); atualizarConvite(); }, () => {});
+}
+
 (function init() {
     // Só avisa quando falta o cardápio DESTA semana (em dia útil). No fim de semana,
     // a próxima ainda não ter saído é normal e não merece aviso.
@@ -658,5 +942,6 @@ function render() {
     }
     if (location.hash === '#home') history.replaceState(null, '', '#inicio');
     aplicarHash();
+    atualizarBotaoSino();
 }());
 """

@@ -16,3 +16,6 @@ venv/
 
 # Cache local do wrangler (Cloudflare)
 .wrangler/
+
+# Segredos locais do Worker (nunca commitar)
+worker/.dev.vars
