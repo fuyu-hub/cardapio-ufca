@@ -845,11 +845,29 @@ async function salvarLembretes() {
         $('btn-salvar').textContent = 'Salvar';
         $('btn-desativar').hidden = false;
     } catch (e) {
-        status('Não deu para ativar: ' + e.message, true);
+        status(await explicarErroPush(e), true);
     } finally {
         btn.disabled = false;
         atualizarBotaoSino();
     }
+}
+
+/* O navegador não conseguiu falar com o próprio serviço de push (antes de chegar ao nosso servidor).
+   Causas comuns: Brave com o push do Google desligado, celular sem serviços do Google (ex.: Huawei),
+   navegador sem suporte a push ou rede/VPN/bloqueador que barra o serviço de notificações. */
+async function explicarErroPush(e) {
+    const falhaServico = e && (e.name === 'AbortError' || /push service|registration failed/i.test(e.message || ''));
+    if (!falhaServico) return 'Não deu para ativar: ' + (e && e.message || 'erro desconhecido');
+
+    let brave = false;
+    try { brave = !!(navigator.brave && await navigator.brave.isBrave()); } catch {}
+    if (brave) {
+        return 'O Brave vem com as notificações de sites desligadas. Abra as configurações do Brave, '
+             + 'procure "Usar os serviços do Google para mensagens push", ative, reinicie o navegador e tente de novo.';
+    }
+    return 'O serviço de notificações do seu navegador não respondeu. Isso costuma acontecer em celulares sem '
+         + 'serviços do Google, com VPN ou bloqueador de anúncios, ou em redes que bloqueiam notificações. '
+         + 'Tente pelo Chrome ou Firefox, ou em outra rede.';
 }
 
 async function desativarLembretes() {
