@@ -32,3 +32,7 @@ VAPID_PUBLIC = "BOvQweM_g1N-lWZGZuqK2dWcGDikya1I0lJyZrDc4_oXDm5TNq41bFA83otlT21d
 #   npx wrangler secret put GITHUB_TOKEN    token do GitHub (Actions: read/write)
 #   npx wrangler secret put VAPID_PRIVATE   chave privada VAPID (campo "d" do JWK)
 #   npx wrangler secret put LOTE_TOKEN      texto aleatório para as chamadas internas
+
+# Guarda os logs de cada execução (visíveis no painel do Cloudflare)
+[observability]
+enabled = true

@@ -30,10 +30,10 @@ const REFEICOES = {
   jantar: { nome: "Jantar", abre: "17:00" },
 };
 
-// Quantas notificações cada execução envia. Acima disso o trabalho é dividido em
-// lotes, cada um numa execução própria. Medido: ~0,85 ms de CPU por notificação;
-// o plano gratuito permite 10 ms de CPU por execução, então 8 deixa margem.
-const TAMANHO_LOTE = 8;
+// Quantas notificações uma execução envia sozinha. Acima disso o trabalho é dividido em
+// lotes, cada um numa execução própria. O limite que pesa é o de ~50 chamadas externas por
+// execução no plano gratuito (CPU não: medido no Cloudflare, 400 notificações cifradas passam).
+const TAMANHO_LOTE = 40;
 
 // Serviços de push aceitos (Chrome/Android, Firefox, Edge/Windows, Safari/iPhone)
 const SERVICOS_PUSH = [
@@ -185,18 +185,31 @@ async function lembrar(env, tipo) {
 
   console.log(`Lembrete de ${tipo}: ${chaves.length} inscrito(s). "${msgs.titulo}: ${msgs.normal}"`);
   if (chaves.length <= TAMANHO_LOTE || !env.SELF || !env.LOTE_TOKEN) {
-    return enviarLote(env, chaves, tipo, msgs);
+    const r = await enviarLote(env, chaves, tipo, msgs);
+    console.log(`Lembrete de ${tipo}: ${JSON.stringify(r)}`);
+    return r;
   }
 
-  // Muitos inscritos: cada lote roda numa execução própria do Worker
+  // Muitos inscritos: cada lote roda numa execução própria do Worker.
+  // Se um lote falhar, ele é enviado aqui mesmo (plano B) e a falha fica no log.
   const lotes = [];
   for (let i = 0; i < chaves.length; i += TAMANHO_LOTE) lotes.push(chaves.slice(i, i + TAMANHO_LOTE));
-  await Promise.all(lotes.map((lote) => env.SELF.fetch("https://interno/lote", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Lote-Token": env.LOTE_TOKEN },
-    body: JSON.stringify({ chaves: lote, tipo, msgs }),
-  })));
-  return { lotes: lotes.length };
+  const resultados = await Promise.all(lotes.map(async (lote, n) => {
+    try {
+      const resp = await env.SELF.fetch("https://interno/lote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Lote-Token": env.LOTE_TOKEN },
+        body: JSON.stringify({ chaves: lote, tipo, msgs }),
+      });
+      if (resp.ok) return await resp.json();
+      console.error(`Lote ${n} respondeu ${resp.status}; enviando direto.`);
+    } catch (e) {
+      console.error(`Lote ${n} falhou (${e.message}); enviando direto.`);
+    }
+    return enviarLote(env, lote, tipo, msgs);
+  }));
+  console.log(`Lembrete de ${tipo}: ${lotes.length} lote(s) ${JSON.stringify(resultados)}`);
+  return { lotes: resultados };
 }
 
 /* ═══════════════════════════ Inscrições (HTTP) ═══════════════════════════ */
@@ -289,12 +302,14 @@ export default {
       evento.cron === CRON_ALMOCO ? lembrar(env, "almoco") :
       evento.cron === CRON_JANTAR ? lembrar(env, "jantar") :
       verificar(env);
-    ctx.waitUntil(
-      tarefa.catch((e) => {
-        // Fica no log do Worker; não dispara nada, então não gera e-mail
-        console.error(`Falha (${evento.cron}): ${e.message}`);
-      }),
-    );
+    // Espera o trabalho terminar aqui mesmo (em vez de ctx.waitUntil): com waitUntil o
+    // Cloudflare encerrava a execução e cancelava as chamadas de lote ainda em andamento.
+    try {
+      await tarefa;
+    } catch (e) {
+      // Fica no log do Worker; não dispara nada, então não gera e-mail
+      console.error(`Falha (${evento.cron}): ${e.message}`);
+    }
   },
 
   async fetch(req, env) {
